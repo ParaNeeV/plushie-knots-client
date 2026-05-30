@@ -244,8 +244,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setLoading(true);
     setTimeout(() => {
       const creds = loadCreds();
-      if (creds[username] && creds[username] === password) {
-        sessionStorage.setItem(SESSION_KEY, username);
+      const matchedKey = Object.keys(creds).find(k => k.toLowerCase() === username.toLowerCase());
+      if (matchedKey && creds[matchedKey] === password) {
+        sessionStorage.setItem(SESSION_KEY, matchedKey);
         onLogin();
       } else {
         setError("Incorrect username or password.");
