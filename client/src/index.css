@@ -1,0 +1,347 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-fredoka: 'Fredoka', sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  /* Plushie Knots - Warm & Cozy Aesthetic */
+  /* Colors from logo: Warm beige, Blush pink, Soft brown, Cream, Sage green */
+  --primary: oklch(0.62 0.18 30); /* Warm tan/brown */
+  --primary-foreground: oklch(0.98 0.01 0);
+  --sidebar-primary: oklch(0.62 0.18 30);
+  --sidebar-primary-foreground: oklch(0.98 0.01 0);
+  --chart-1: oklch(0.62 0.18 30); /* Warm brown */
+  --chart-2: oklch(0.75 0.15 15); /* Blush pink */
+  --chart-3: oklch(0.82 0.10 120); /* Sage green */
+  --chart-4: oklch(0.92 0.08 60); /* Warm cream */
+  --chart-5: oklch(0.72 0.12 20); /* Soft rose */
+  --radius: 1rem;
+  --background: oklch(0.96 0.02 60); /* Warm cream background */
+  --foreground: oklch(0.32 0.03 30); /* Warm brown text */
+  --card: oklch(0.98 0.01 60); /* Warm white */
+  --card-foreground: oklch(0.32 0.03 30);
+  --popover: oklch(0.98 0.01 60);
+  --popover-foreground: oklch(0.32 0.03 30);
+  --secondary: oklch(0.75 0.15 15); /* Blush pink */
+  --secondary-foreground: oklch(0.32 0.03 30);
+  --muted: oklch(0.82 0.10 120); /* Sage green */
+  --muted-foreground: oklch(0.50 0.05 30);
+  --accent: oklch(0.75 0.15 15); /* Blush pink */
+  --accent-foreground: oklch(0.98 0.01 0);
+  --destructive: oklch(0.62 0.18 30); /* Warm brown */
+  --destructive-foreground: oklch(0.98 0.01 0);
+  --border: oklch(0.90 0.02 60); /* Light warm gray */
+  --input: oklch(0.94 0.01 60); /* Very light warm */
+  --ring: oklch(0.75 0.15 15); /* Blush pink */
+  --sidebar: oklch(0.98 0.01 60);
+  --sidebar-foreground: oklch(0.32 0.03 30);
+  --sidebar-accent: oklch(0.75 0.15 15);
+  --sidebar-accent-foreground: oklch(0.98 0.01 0);
+  --sidebar-border: oklch(0.90 0.02 60);
+  --sidebar-ring: oklch(0.75 0.15 15);
+}
+
+.dark {
+  /* Dark mode not used for Plushie Knots - light theme only */
+  --primary: oklch(0.68 0.22 330);
+  --primary-foreground: oklch(0.98 0.01 0);
+  --sidebar-primary: oklch(0.68 0.22 330);
+  --sidebar-primary-foreground: oklch(0.98 0.01 0);
+  --background: oklch(0.98 0.01 0);
+  --foreground: oklch(0.25 0.02 280);
+  --card: oklch(0.99 0.005 0);
+  --card-foreground: oklch(0.25 0.02 280);
+  --popover: oklch(0.99 0.005 0);
+  --popover-foreground: oklch(0.25 0.02 280);
+  --secondary: oklch(0.72 0.15 290);
+  --secondary-foreground: oklch(0.25 0.02 280);
+  --muted: oklch(0.90 0.08 60);
+  --muted-foreground: oklch(0.50 0.05 280);
+  --accent: oklch(0.68 0.22 330);
+  --accent-foreground: oklch(0.98 0.01 0);
+  --destructive: oklch(0.65 0.18 20);
+  --destructive-foreground: oklch(0.98 0.01 0);
+  --border: oklch(0.92 0.01 0);
+  --input: oklch(0.95 0.005 0);
+  --ring: oklch(0.68 0.22 330);
+  --chart-1: oklch(0.68 0.22 330);
+  --chart-2: oklch(0.72 0.15 290);
+  --chart-3: oklch(0.75 0.12 160);
+  --chart-4: oklch(0.90 0.08 60);
+  --chart-5: oklch(0.65 0.18 20);
+  --sidebar: oklch(0.99 0.005 0);
+  --sidebar-foreground: oklch(0.25 0.02 280);
+  --sidebar-accent: oklch(0.68 0.22 330);
+  --sidebar-accent-foreground: oklch(0.98 0.01 0);
+  --sidebar-border: oklch(0.92 0.01 0);
+  --sidebar-ring: oklch(0.68 0.22 330);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-poppins;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-fredoka font-bold;
+  }
+  .font-display {
+    @apply font-fredoka font-bold;
+  }
+  .font-handwriting {
+    font-family: 'Caveat', cursive;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  /**
+   * Custom container utility that centers content and adds responsive padding.
+   *
+   * This overrides Tailwind's default container behavior to:
+   * - Auto-center content (mx-auto)
+   * - Add responsive horizontal padding
+   * - Set max-width for large screens
+   *
+   * Usage: <div className="container">...</div>
+   *
+   * For custom widths, use max-w-* utilities directly:
+   * <div className="max-w-6xl mx-auto px-4">...</div>
+   */
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem; /* 16px - mobile padding */
+    padding-right: 1rem;
+  }
+
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem; /* 32px - desktop padding */
+      padding-right: 2rem;
+      max-width: 1280px; /* Standard content width */
+    }
+  }
+}
+
+
+/* Playful Whimsy Animation Utilities */
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float-up {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes gentle-rotate {
+  0%, 100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes wave {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gentle-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@layer components {
+  .animate-bounce-in {
+    animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .animate-float {
+    animation: float-up 3s ease-in-out infinite;
+  }
+
+  .animate-gentle-rotate {
+    animation: gentle-rotate 4s ease-in-out infinite;
+  }
+
+  .fade-in-up {
+    animation: fade-in-up 0.6s ease-out;
+  }
+
+  .slide-in-left {
+    animation: slide-in-left 0.6s ease-out;
+  }
+
+  /* Playful card hover effect */
+  .card-hover {
+    @apply transition-all duration-200 ease-out hover:shadow-lg hover:scale-105 hover:-rotate-1;
+  }
+
+  /* Smooth button press animation */
+  .btn-press {
+    @apply active:scale-95 transition-transform duration-150;
+  }
+
+  /* Stagger animation for list items */
+  .stagger-item {
+    @apply opacity-0;
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+
+  .stagger-item:nth-child(1) { animation-delay: 0ms; }
+  .stagger-item:nth-child(2) { animation-delay: 80ms; }
+  .stagger-item:nth-child(3) { animation-delay: 160ms; }
+  .stagger-item:nth-child(4) { animation-delay: 240ms; }
+  .stagger-item:nth-child(5) { animation-delay: 320ms; }
+  .stagger-item:nth-child(6) { animation-delay: 400ms; }
+
+  /* Wave divider */
+  .wave-divider {
+    position: relative;
+    height: 100px;
+    background: inherit;
+  }
+
+  .wave-divider svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+  }
+
+  .wave-path {
+    animation: wave 3s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  /* Curvy text animations */
+  .curvy-text {
+    font-family: 'Great Vibes', cursive;
+    animation: float-in 0.8s ease-out, gentle-float 3s ease-in-out 0.8s infinite;
+  }
+}
