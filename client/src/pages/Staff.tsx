@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Plus, Search, Trash2, Pencil, X, Check,
-  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote,
+  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -20,14 +20,28 @@ interface Order {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────
-const CREDS: Record<string, string> = {
-  staff: "plushie123",
-  jiya: "crochet2025",
-  kiyoshi: "knots2025",
-};
-
 const STORAGE_KEY = "pk_staff_orders";
 const SESSION_KEY = "pk_staff_session";
+const CREDS_KEY = "pk_staff_creds";
+
+const DEFAULT_CREDS: Record<string, string> = {
+  Param: "1409",
+  Jiya: "plushieJ",
+  Kiyoshi: "plushieK",
+};
+
+function loadCreds(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(CREDS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  localStorage.setItem(CREDS_KEY, JSON.stringify(DEFAULT_CREDS));
+  return DEFAULT_CREDS;
+}
+
+function saveCreds(creds: Record<string, string>) {
+  localStorage.setItem(CREDS_KEY, JSON.stringify(creds));
+}
 
 const PRODUCT_OPTIONS = [
   "Flower Bouquet",
@@ -76,6 +90,7 @@ const SEED_ORDERS: Order[] = [
     email: "nainaj@gmail.com",
     product: "Custom",
     description: "Sunflower bouquet with name tag 'Happy Birthday Priya' in yellow & white.",
+    date: "2025-05-27",
     status: "new",
     notes: "Rush order — needed by 30th.",
   },
@@ -110,25 +125,110 @@ function todayStr() {
 }
 
 const statusMeta: Record<Status, { label: string; color: string; icon: React.ReactNode }> = {
-  new: {
-    label: "New",
-    color: "bg-pink-100 text-pink-700 border-pink-200",
-    icon: <Package className="h-3 w-3" />,
-  },
-  "in-progress": {
-    label: "In Progress",
-    color: "bg-amber-100 text-amber-700 border-amber-200",
-    icon: <Clock className="h-3 w-3" />,
-  },
-  done: {
-    label: "Done",
-    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    icon: <CheckCircle2 className="h-3 w-3" />,
-  },
+  new: { label: "New", color: "bg-pink-100 text-pink-700 border-pink-200", icon: <Package className="h-3 w-3" /> },
+  "in-progress": { label: "In Progress", color: "bg-amber-100 text-amber-700 border-amber-200", icon: <Clock className="h-3 w-3" /> },
+  done: { label: "Done", color: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="h-3 w-3" /> },
 };
 
-// ── Empty form state ───────────────────────────────────────────────────
 const emptyForm = { name: "", email: "", product: "", description: "", notes: "" };
+
+// ══════════════════════════════════════════════════════════════════════
+// CHANGE PASSWORD MODAL
+// ══════════════════════════════════════════════════════════════════════
+function ChangePasswordModal({ user, onClose }: { user: string; onClose: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const handleSave = () => {
+    setErr("");
+    const creds = loadCreds();
+    if (creds[user] !== current) { setErr("Current password is incorrect."); return; }
+    if (newPass.length < 4) { setErr("New password must be at least 4 characters."); return; }
+    if (newPass !== confirm) { setErr("Passwords do not match."); return; }
+    creds[user] = newPass;
+    saveCreds(creds);
+    setSuccess(true);
+    setTimeout(onClose, 1500);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.93, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 20 }}
+        transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-pink-100 overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-pink-100">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-pink-400" />
+            <h2 className="font-bold text-amber-900 text-base">Change Password</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-400 hover:text-pink-500 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-xs text-amber-500">Changing password for <span className="font-bold text-amber-800">{user}</span></p>
+
+          {[
+            { label: "Current Password", val: current, set: setCurrent },
+            { label: "New Password", val: newPass, set: setNewPass },
+            { label: "Confirm New Password", val: confirm, set: setConfirm },
+          ].map(({ label, val, set }) => (
+            <div key={label}>
+              <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">{label}</label>
+              <input
+                type="password"
+                value={val}
+                onChange={(e) => set(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 transition-colors"
+              />
+            </div>
+          ))}
+
+          <AnimatePresence>
+            {err && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-xs text-red-500">
+                {err}
+              </motion.p>
+            )}
+            {success && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-emerald-600 font-semibold">
+                ✓ Password changed successfully!
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t border-pink-100">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl border-2 border-pink-100 text-amber-700 text-sm font-medium hover:bg-pink-50 transition-colors">
+            Cancel
+          </button>
+          <motion.button
+            onClick={handleSave}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            className="flex-1 py-2.5 rounded-2xl bg-pink-400 hover:bg-pink-500 text-white text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-1.5"
+          >
+            <Check className="h-4 w-4" /> Save
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 // ══════════════════════════════════════════════════════════════════════
 // LOGIN SCREEN
@@ -143,7 +243,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setError("");
     setLoading(true);
     setTimeout(() => {
-      if (CREDS[username] && CREDS[username] === password) {
+      const creds = loadCreds();
+      if (creds[username] && creds[username] === password) {
         sessionStorage.setItem(SESSION_KEY, username);
         onLogin();
       } else {
@@ -155,7 +256,6 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div className="min-h-screen bg-amber-50 flex items-center justify-center px-4">
-      {/* decorative blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
           animate={{ y: [0, -20, 0], x: [0, 12, 0] }}
@@ -175,7 +275,6 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
         className="relative w-full max-w-sm bg-white rounded-3xl shadow-xl border border-pink-100 p-8"
       >
-        {/* Logo */}
         <div className="text-center mb-8">
           <motion.div
             animate={{ rotate: [0, -8, 8, -5, 0] }}
@@ -188,12 +287,9 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <p className="text-xs text-pink-400 italic mt-0.5">Staff Portal</p>
         </div>
 
-        {/* Fields */}
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">
-              Username
-            </label>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Username</label>
             <input
               type="text"
               value={username}
@@ -204,9 +300,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">
-              Password
-            </label>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Password</label>
             <input
               type="password"
               value={password}
@@ -244,15 +338,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
               className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
             />
-          ) : (
-            "Sign In"
-          )}
+          ) : "Sign In"}
         </motion.button>
-
-        <p className="text-center text-xs text-amber-400 mt-5">
-          Demo: <code className="bg-amber-50 px-1.5 py-0.5 rounded text-amber-700">staff</code> /{" "}
-          <code className="bg-amber-50 px-1.5 py-0.5 rounded text-amber-700">plushie123</code>
-        </p>
       </motion.div>
     </div>
   );
@@ -297,29 +384,22 @@ function OrderFormModal({ initial, onSave, onClose }: OrderFormProps) {
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
         className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-pink-100 overflow-hidden"
       >
-        {/* Modal header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-pink-100">
           <h2 className="font-bold text-amber-900 text-base">
             {initial?.id ? "Edit Order" : "Add New Order"}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-400 hover:text-pink-500 transition-colors"
-          >
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-400 hover:text-pink-500 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Fields */}
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
           {([
             { label: "Customer Name", key: "name", type: "text", placeholder: "Full name" },
             { label: "Email", key: "email", type: "email", placeholder: "customer@email.com" },
           ] as const).map(({ label, key, type, placeholder }) => (
             <div key={key}>
-              <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">
-                {label}
-              </label>
+              <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">{label}</label>
               <input
                 type={type}
                 value={form[key]}
@@ -331,25 +411,19 @@ function OrderFormModal({ initial, onSave, onClose }: OrderFormProps) {
           ))}
 
           <div>
-            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">
-              Product
-            </label>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Product</label>
             <select
               value={form.product}
               onChange={set("product")}
               className="w-full px-4 py-2.5 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 transition-colors"
             >
               <option value="">Select product</option>
-              {PRODUCT_OPTIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
+              {PRODUCT_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">
-              Order Description
-            </label>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Order Description</label>
             <textarea
               value={form.description}
               onChange={set("description")}
@@ -360,9 +434,7 @@ function OrderFormModal({ initial, onSave, onClose }: OrderFormProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">
-              Internal Notes
-            </label>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Internal Notes</label>
             <textarea
               value={form.notes}
               onChange={set("notes")}
@@ -374,24 +446,15 @@ function OrderFormModal({ initial, onSave, onClose }: OrderFormProps) {
 
           <AnimatePresence>
             {err && (
-              <motion.p
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-xs text-red-500"
-              >
+              <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-xs text-red-500">
                 {err}
               </motion.p>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Footer */}
         <div className="flex gap-3 px-6 py-4 border-t border-pink-100">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-2xl border-2 border-pink-100 text-amber-700 text-sm font-medium hover:bg-pink-50 transition-colors"
-          >
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-2xl border-2 border-pink-100 text-amber-700 text-sm font-medium hover:bg-pink-50 transition-colors">
             Cancel
           </button>
           <motion.button
@@ -421,13 +484,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteTemp, setNoteTemp] = useState("");
+  const [showChangePass, setShowChangePass] = useState(false);
 
-  const user = sessionStorage.getItem(SESSION_KEY) || "staff";
+  const user = sessionStorage.getItem(SESSION_KEY) || "Staff";
 
-  // Persist on change
   useEffect(() => { saveOrders(orders); }, [orders]);
 
-  // Stats
   const stats = {
     total: orders.length,
     new: orders.filter((o) => o.status === "new").length,
@@ -435,7 +497,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     done: orders.filter((o) => o.status === "done").length,
   };
 
-  // Filtered
   const filtered = orders.filter((o) => {
     const q = search.toLowerCase();
     const matchQ = !q || [o.name, o.email, o.product, o.description].join(" ").toLowerCase().includes(q);
@@ -444,7 +505,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     return matchQ && matchS && matchP;
   });
 
-  // Mutations
   const addOrder = (data: typeof emptyForm) => {
     const order: Order = { id: nextId, ...data, date: todayStr(), status: "new" };
     setOrders((prev) => [order, ...prev]);
@@ -453,9 +513,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   const editOrder = (data: typeof emptyForm) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === modal.editing!.id ? { ...o, ...data } : o))
-    );
+    setOrders((prev) => prev.map((o) => (o.id === modal.editing!.id ? { ...o, ...data } : o)));
     setModal({ open: false });
   };
 
@@ -480,17 +538,23 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         <div className="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between py-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-pink-100 flex items-center justify-center">
-              <LayoutDashboard className="h-4.5 w-4.5 text-pink-500" />
+              <LayoutDashboard className="h-4 w-4 text-pink-500" />
             </div>
             <div>
               <h1 className="text-sm font-bold text-amber-900 leading-none">Plushie Knots</h1>
               <p className="text-xs text-pink-400 italic leading-none mt-0.5">Staff Dashboard</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="hidden sm:block text-xs text-amber-500">
               Signed in as <span className="font-semibold text-amber-700">{user}</span>
             </span>
+            <button
+              onClick={() => setShowChangePass(true)}
+              className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-pink-500 border border-pink-100 hover:border-pink-300 rounded-xl px-3 py-2 transition-colors"
+            >
+              <KeyRound className="h-3.5 w-3.5" /> Change Password
+            </button>
             <button
               onClick={onLogout}
               className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-red-500 border border-pink-100 hover:border-red-200 rounded-xl px-3 py-2 transition-colors"
@@ -502,7 +566,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-
         {/* Stats */}
         <motion.div
           className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"
@@ -601,29 +664,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                           transition={{ duration: 0.2 }}
                           className="border-b border-pink-50 last:border-0 hover:bg-amber-50/40 transition-colors"
                         >
-                          {/* Name */}
-                          <td className="px-4 py-3 font-medium text-amber-900 whitespace-nowrap">
-                            {order.name}
-                          </td>
-                          {/* Email */}
-                          <td className="px-4 py-3 text-amber-500 text-xs whitespace-nowrap">
-                            {order.email || "—"}
-                          </td>
-                          {/* Product */}
+                          <td className="px-4 py-3 font-medium text-amber-900 whitespace-nowrap">{order.name}</td>
+                          <td className="px-4 py-3 text-amber-500 text-xs whitespace-nowrap">{order.email || "—"}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="inline-block text-xs bg-pink-50 text-pink-600 border border-pink-200 font-medium px-2.5 py-1 rounded-full">
                               {order.product}
                             </span>
                           </td>
-                          {/* Description */}
                           <td className="px-4 py-3 text-amber-600 text-xs max-w-xs">
                             <span className="line-clamp-2">{order.description}</span>
                           </td>
-                          {/* Date */}
-                          <td className="px-4 py-3 text-amber-400 text-xs whitespace-nowrap">
-                            {order.date}
-                          </td>
-                          {/* Status */}
+                          <td className="px-4 py-3 text-amber-400 text-xs whitespace-nowrap">{order.date}</td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <select
                               value={order.status}
@@ -635,7 +686,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                               <option value="done">Done</option>
                             </select>
                           </td>
-                          {/* Notes */}
                           <td className="px-4 py-3 min-w-[140px]">
                             {editingNoteId === order.id ? (
                               <div className="flex items-center gap-1">
@@ -664,13 +714,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                               </button>
                             )}
                           </td>
-                          {/* Actions */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => setModal({ open: true, editing: order })}
                                 className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors"
-                                title="Edit"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
@@ -687,7 +735,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 <button
                                   onClick={() => setDeletingId(order.id)}
                                   className="p-1.5 rounded-xl hover:bg-red-50 text-amber-300 hover:text-red-500 transition-colors"
-                                  title="Delete"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>
@@ -702,15 +749,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               </tbody>
             </table>
           </div>
-
-          {/* Footer */}
           <div className="px-4 py-3 border-t border-pink-50 text-xs text-amber-400">
             Showing {filtered.length} of {orders.length} order{orders.length !== 1 ? "s" : ""}
           </div>
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modals */}
       <AnimatePresence>
         {modal.open && (
           <OrderFormModal
@@ -722,13 +767,16 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             onClose={() => setModal({ open: false })}
           />
         )}
+        {showChangePass && (
+          <ChangePasswordModal user={user} onClose={() => setShowChangePass(false)} />
+        )}
       </AnimatePresence>
     </div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// ROOT: Staff page
+// ROOT
 // ══════════════════════════════════════════════════════════════════════
 export default function Staff() {
   const [loggedIn, setLoggedIn] = useState(() => !!sessionStorage.getItem(SESSION_KEY));
