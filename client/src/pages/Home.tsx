@@ -1,5 +1,7 @@
 import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
+import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useRef } from "react";
 import WaveDivider from "@/components/WaveDivider";
@@ -175,7 +177,7 @@ function CornerBear() {
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", product: "", message: "" });
+  const [formData, setFormData] = useState({ name: "", phone: "", product: "", message: "" });
   const [formSubmitted, setFormSubmitted] = useState(false);
 
   useEffect(() => {
@@ -191,13 +193,21 @@ export default function Home() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const msg = `Hi Jiya & Kiyoshi! 🌸 I'd like to place a custom order.\n\n👤 Name: ${formData.name}\n📧 Email: ${formData.email}\n🛍️ Product: ${formData.product}\n💬 Idea: ${formData.message}`;
+    const msg = `Hi Jiya & Kiyoshi! 🌸 I'd like to place a custom order.\n\n👤 Name: ${formData.name}\n📱 Phone: ${formData.phone}\n🛍️ Product: ${formData.product}\n💬 Idea: ${formData.message}`;
     window.open(makeWhatsappLink(msg), "_blank");
+    await supabase.from("orders").insert({
+      name: formData.name,
+      phone: formData.phone,
+      product: formData.product,
+      description: formData.message,
+      status: "new",
+      notes: "",
+    });
     setFormSubmitted(true);
     setTimeout(() => {
-      setFormData({ name: "", email: "", product: "", message: "" });
+      setFormData({ name: "", phone: "", product: "", message: "" });
       setFormSubmitted(false);
     }, 3000);
   };
@@ -233,6 +243,15 @@ export default function Home() {
                 {s}
               </motion.a>
             ))}
+            <Link href="/blog">
+              <motion.a
+                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.48 }}
+                whileHover={{ y: -2, color: "#f472b6" }}
+                className="text-amber-800 text-sm font-medium capitalize transition-colors cursor-pointer">
+                Blog
+              </motion.a>
+            </Link>
           </div>
           <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
             whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.95 }}
@@ -262,6 +281,13 @@ export default function Home() {
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </motion.a>
               ))}
+              <Link href="/blog">
+                <motion.a onClick={() => setMobileMenuOpen(false)}
+                  initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.25 }}
+                  className="text-amber-800 text-sm font-medium capitalize border-b border-pink-50 pb-3 cursor-pointer">
+                  Blog
+                </motion.a>
+              </Link>
               <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
                 initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.28 }}
                 className="flex items-center justify-center gap-2 bg-green-500 text-white text-sm font-semibold px-4 py-3 rounded-2xl">
@@ -747,7 +773,7 @@ export default function Home() {
                     className="space-y-5">
                     {[
                       { label: "Your Name", name: "name", type: "text", placeholder: "Tell us your name" },
-                      { label: "Email", name: "email", type: "email", placeholder: "your@email.com" },
+                      { label: "Phone Number", name: "phone", type: "tel", placeholder: "+91 98765 43210" },
                     ].map(({ label, name, type, placeholder }, i) => (
                       <motion.div key={name} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.07 }}>
