@@ -2,10 +2,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
+import { Analytics } from "@vercel/analytics/react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Staff from "./pages/Staff";
+import Blog from "./pages/Blog";
 
 
 function Router() {
@@ -13,6 +15,7 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/staff"} component={Staff} />
+      <Route path={"/blog"} component={Blog} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -34,6 +37,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
+          <Analytics />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
