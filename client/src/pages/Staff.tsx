@@ -500,6 +500,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 <div className="flex items-center gap-1">
                                   <input autoFocus type="text" value={noteTemp} onChange={(e) => setNoteTemp(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") saveNote(order.id); if (e.key === "Escape") setEditingNoteId(null); }}
+                                    onPaste={(e) => {
+                                      const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith("image"));
+                                      if (item) { e.preventDefault(); const file = item.getAsFile(); if (file) { uploadImage(order.id, file); setEditingNoteId(null); } }
+                                    }}
+                                    placeholder="Type note or paste image…"
                                     className="w-full text-xs px-2 py-1.5 border border-pink-200 rounded-xl focus:outline-none focus:border-pink-400" />
                                   <button onClick={() => saveNote(order.id)} className="p-1 text-emerald-500 hover:text-emerald-700"><Check className="h-3.5 w-3.5" /></button>
                                   <button onClick={() => setEditingNoteId(null)} className="p-1 text-amber-400 hover:text-amber-600"><X className="h-3.5 w-3.5" /></button>
@@ -522,26 +527,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                       </button>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-2">
-                                      <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
-                                        <Paperclip className="h-3 w-3" />
-                                        <span>Add image</span>
-                                        <input type="file" accept="image/*" className="hidden"
-                                          onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
-                                      </label>
-                                      <span
-                                        className="text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors"
-                                        title="Click here then paste image (Ctrl+V)"
-                                        tabIndex={0}
-                                        onPaste={(e) => {
-                                          const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith("image"));
-                                          if (item) { const file = item.getAsFile(); if (file) uploadImage(order.id, file); }
-                                        }}
-                                        onKeyDown={(e) => e.stopPropagation()}
-                                      >
-                                        📋 Paste
-                                      </span>
-                                    </div>
+                                    <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
+                                      <Paperclip className="h-3 w-3" />
+                                      <span>Add image</span>
+                                      <input type="file" accept="image/*" className="hidden"
+                                        onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
+                                    </label>
                                   )}
                                 </div>
                               )}
