@@ -505,11 +505,31 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                   <button onClick={() => setEditingNoteId(null)} className="p-1 text-amber-400 hover:text-amber-600"><X className="h-3.5 w-3.5" /></button>
                                 </div>
                               ) : (
-                                <button onClick={() => { setEditingNoteId(order.id); setNoteTemp(order.notes); }}
-                                  className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-700 transition-colors w-full text-left group">
-                                  <StickyNote className="h-3 w-3 flex-shrink-0 group-hover:text-pink-400" />
-                                  <span className="line-clamp-1">{order.notes || <em className="not-italic text-amber-300">Add note…</em>}</span>
-                                </button>
+                                <div className="space-y-1.5">
+                                  <button onClick={() => { setEditingNoteId(order.id); setNoteTemp(order.notes); }}
+                                    className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-700 transition-colors w-full text-left group">
+                                    <StickyNote className="h-3 w-3 flex-shrink-0 group-hover:text-pink-400" />
+                                    <span className="line-clamp-1">{order.notes || <em className="not-italic text-amber-300">Add note…</em>}</span>
+                                  </button>
+                                  {order.image_url ? (
+                                    <div className="relative inline-block">
+                                      <a href={order.image_url} target="_blank" rel="noopener noreferrer">
+                                        <img src={order.image_url} alt="ref" className="w-12 h-12 object-cover rounded-xl border border-pink-200 hover:opacity-80 transition-opacity" />
+                                      </a>
+                                      <button onClick={() => removeImage(order.id)}
+                                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
+                                        <Trash2 className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
+                                      <Paperclip className="h-3 w-3" />
+                                      <span>Add image</span>
+                                      <input type="file" accept="image/*" className="hidden"
+                                        onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
+                                    </label>
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
