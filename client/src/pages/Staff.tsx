@@ -522,12 +522,26 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                       </button>
                                     </div>
                                   ) : (
-                                    <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
-                                      <Paperclip className="h-3 w-3" />
-                                      <span>Add image</span>
-                                      <input type="file" accept="image/*" className="hidden"
-                                        onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
-                                    </label>
+                                    <div className="flex items-center gap-2">
+                                      <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
+                                        <Paperclip className="h-3 w-3" />
+                                        <span>Add image</span>
+                                        <input type="file" accept="image/*" className="hidden"
+                                          onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
+                                      </label>
+                                      <span
+                                        className="text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors"
+                                        title="Click here then paste image (Ctrl+V)"
+                                        tabIndex={0}
+                                        onPaste={(e) => {
+                                          const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith("image"));
+                                          if (item) { const file = item.getAsFile(); if (file) uploadImage(order.id, file); }
+                                        }}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                      >
+                                        📋 Paste
+                                      </span>
+                                    </div>
                                   )}
                                 </div>
                               )}
