@@ -300,6 +300,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteTemp, setNoteTemp] = useState("");
   const [showChangePass, setShowChangePass] = useState(false);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
   const user = sessionStorage.getItem(SESSION_KEY) || "Staff";
 
@@ -500,41 +501,16 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 <div className="flex items-center gap-1">
                                   <input autoFocus type="text" value={noteTemp} onChange={(e) => setNoteTemp(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") saveNote(order.id); if (e.key === "Escape") setEditingNoteId(null); }}
-                                    onPaste={(e) => {
-                                      const item = Array.from(e.clipboardData.items).find(i => i.type.startsWith("image"));
-                                      if (item) { e.preventDefault(); const file = item.getAsFile(); if (file) { uploadImage(order.id, file); setEditingNoteId(null); } }
-                                    }}
-                                    placeholder="Type note or paste image…"
                                     className="w-full text-xs px-2 py-1.5 border border-pink-200 rounded-xl focus:outline-none focus:border-pink-400" />
                                   <button onClick={() => saveNote(order.id)} className="p-1 text-emerald-500 hover:text-emerald-700"><Check className="h-3.5 w-3.5" /></button>
                                   <button onClick={() => setEditingNoteId(null)} className="p-1 text-amber-400 hover:text-amber-600"><X className="h-3.5 w-3.5" /></button>
                                 </div>
                               ) : (
-                                <div className="space-y-1.5">
-                                  <button onClick={() => { setEditingNoteId(order.id); setNoteTemp(order.notes); }}
-                                    className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-700 transition-colors w-full text-left group">
-                                    <StickyNote className="h-3 w-3 flex-shrink-0 group-hover:text-pink-400" />
-                                    <span className="line-clamp-1">{order.notes || <em className="not-italic text-amber-300">Add note…</em>}</span>
-                                  </button>
-                                  {order.image_url ? (
-                                    <div className="relative inline-block">
-                                      <a href={order.image_url} target="_blank" rel="noopener noreferrer">
-                                        <img src={order.image_url} alt="ref" className="w-12 h-12 object-cover rounded-xl border border-pink-200 hover:opacity-80 transition-opacity" />
-                                      </a>
-                                      <button onClick={() => removeImage(order.id)}
-                                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
-                                        <Trash2 className="h-2.5 w-2.5" />
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
-                                      <Paperclip className="h-3 w-3" />
-                                      <span>Add image</span>
-                                      <input type="file" accept="image/*" className="hidden"
-                                        onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
-                                    </label>
-                                  )}
-                                </div>
+                                <button onClick={() => { setEditingNoteId(order.id); setNoteTemp(order.notes); }}
+                                  className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-700 transition-colors w-full text-left group">
+                                  <StickyNote className="h-3 w-3 flex-shrink-0 group-hover:text-pink-400" />
+                                  <span className="line-clamp-1">{order.notes || <em className="not-italic text-amber-300">Add note…</em>}</span>
+                                </button>
                               )}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -578,6 +554,32 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           />
         )}
         {showChangePass && <ChangePasswordModal user={user} onClose={() => setShowChangePass(false)} />}
+        {lightboxImg && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setLightboxImg(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4"
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-2xl w-full"
+            >
+              <img src={lightboxImg} alt="Order reference" className="w-full rounded-3xl shadow-2xl" />
+              <button
+                onClick={() => setLightboxImg(null)}
+                className="absolute -top-3 -right-3 w-8 h-8 bg-white text-gray-700 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
