@@ -300,7 +300,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteTemp, setNoteTemp] = useState("");
   const [showChangePass, setShowChangePass] = useState(false);
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
   const user = sessionStorage.getItem(SESSION_KEY) || "Staff";
 
@@ -554,32 +553,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           />
         )}
         {showChangePass && <ChangePasswordModal user={user} onClose={() => setShowChangePass(false)} />}
-        {lightboxImg && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setLightboxImg(null)}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4"
-          >
-            <motion.div
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.85, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative max-w-2xl w-full"
-            >
-              <img src={lightboxImg} alt="Order reference" className="w-full rounded-3xl shadow-2xl" />
-              <button
-                onClick={() => setLightboxImg(null)}
-                className="absolute -top-3 -right-3 w-8 h-8 bg-white text-gray-700 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
       </AnimatePresence>
     </div>
   );
