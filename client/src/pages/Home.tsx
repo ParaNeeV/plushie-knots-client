@@ -341,11 +341,11 @@ export default function Home() {
             </Link>
 
           </div>
-          <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
+          <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
             whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.95 }}
             className="hidden md:flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-sm">
             <MessageCircle className="h-4 w-4" /> Order Now
-          </motion.a>
+          </motion.button>
           <motion.button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             whileTap={{ scale: 0.9 }}
             className="md:hidden p-2 hover:bg-pink-50 rounded-full transition-colors">
@@ -376,11 +376,11 @@ export default function Home() {
                   Blog
                 </motion.a>
               </Link>
-              <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
+              <motion.button onClick={() => { setMobileMenuOpen(false); setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸"); }}
                 initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.28 }}
                 className="flex items-center justify-center gap-2 bg-green-500 text-white text-sm font-semibold px-4 py-3 rounded-2xl">
                 <MessageCircle className="h-4 w-4" /> Order on WhatsApp
-              </motion.a>
+              </motion.button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -439,11 +439,11 @@ export default function Home() {
               className="inline-flex items-center justify-center gap-2 bg-amber-800 hover:bg-amber-900 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md cursor-pointer">
               Shop Bestsellers ✨
             </motion.a>
-            <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
+            <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
               whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
               className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
               <MessageCircle className="h-4 w-4" /> Order on WhatsApp
-            </motion.a>
+            </motion.button>
           </motion.div>
 
           {/* Stats */}
@@ -544,6 +544,7 @@ export default function Home() {
               variants={staggerContainer(0.06)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {bouquets.map((item) => (
                 <motion.div key={item.name} variants={popIn}
+                  onClick={() => setPopupMsg(`Hi! I'd love to order the ${item.name} 🌸`)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
@@ -575,6 +576,7 @@ export default function Home() {
               variants={staggerContainer(0.08)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {keychains.map((item) => (
                 <motion.div key={item.name} variants={popIn}
+                  onClick={() => setPopupMsg(`Hi! I'd love to order the ${item.name} keychain 🌸`)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
@@ -654,12 +656,11 @@ export default function Home() {
               <p className="text-amber-600 text-sm mb-7 max-w-sm mx-auto">
                 Customisation is available — pick your design, your colours, add a personal note. Made just for you.
               </p>
-              <motion.a href={makeWhatsappLink("Hi! I'd like to place a custom order 🌸 Can you help?")}
-                target="_blank" rel="noopener noreferrer"
+              <motion.button onClick={() => setPopupMsg("Hi! I'd like to place a custom order 🌸 Can you help?")}
                 whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
                 className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
                 <MessageCircle className="h-4 w-4" /> Chat & Order on WhatsApp
-              </motion.a>
+              </motion.button>
             </div>
           </Reveal>
         </div>
@@ -920,11 +921,11 @@ export default function Home() {
               </motion.a>
             ))}
           </div>
-          <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
+          <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
             whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
             className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-7 py-3 text-sm shadow-md mb-8">
             <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
-          </motion.a>
+          </motion.button>
           <a href="https://www.instagram.com/plushie_knots_" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-amber-600 hover:text-pink-500 text-xs transition-colors mb-4">
             <Instagram className="h-4 w-4" /> @plushie_knots_
