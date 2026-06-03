@@ -71,10 +71,10 @@ const bouquets = [
   { name: "Blue Tulip + Daisy", img: "/bouquet-blue-tulip.jpg", price: "₹249" },
   { name: "Purple Lily", img: "/bouquet-purple-lily.jpg", price: "₹299" },
   { name: "Pink Tulip + Lily", img: "/bouquet-pink-tulip-lily.jpg", price: "₹349" },
-  { name: "Mixed Tulip Bouquet", img: "/bouquet-mixed-tulip.jpg", price: "₹399" },
+  { name: "Mixed Tulip Bouquet", img: "/bouquet-mixed-tulip.jpg", price: "₹599" },
   { name: "Daisy Bouquet", img: "/bouquet-daisy.jpg", price: "₹399" },
   { name: "Yellow Tulip Bouquet", img: "/bouquet-yellow-tulip.jpg", price: "₹449" },
-  { name: "Sunflower + Daisy", img: "/bouquet-sunflower-daisy.jpg", price: "₹399" },
+  { name: "Sunflower + Daisy", img: "/bouquet-sunflower-daisy.jpg", price: "₹599" },
   { name: "Pink Lily Bouquet", img: "/bouquet-pink-lily.jpg", price: "₹399" },
   { name: "Red & White Rose Bouquet", img: "/bouquet-rose-luxury.jpg", price: "₹699" },
 ];
