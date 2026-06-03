@@ -179,6 +179,19 @@ export default function Home() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [formData, setFormData] = useState({ name: "", phone: "", product: "", message: "" });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [dbPrices, setDbPrices] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase.from("products").select("name, price").then(({ data }) => {
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach((p: { name: string; price: string }) => { map[p.name] = p.price; });
+        setDbPrices(map);
+      }
+    });
+  }, []);
+
+  const getPrice = (name: string, fallback: string) => dbPrices[name] || fallback;
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
@@ -410,7 +423,7 @@ export default function Home() {
                     <h3 className="text-xl font-bold text-amber-900">{product.name}</h3>
                     <motion.span whileHover={{ scale: 1.1 }}
                       className="text-pink-600 font-bold text-sm bg-pink-50 px-3 py-1.5 rounded-full border border-pink-100 whitespace-nowrap ml-2">
-                      {product.price}
+                      {getPrice(product.name, product.price)}
                     </motion.span>
                   </div>
                   <p className="text-amber-600 text-sm mb-4 leading-relaxed">{product.desc}</p>
@@ -466,7 +479,7 @@ export default function Home() {
                   </div>
                   <div className="p-3 text-center">
                     <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
-                    <p className="text-pink-500 text-xs font-bold mt-1">{item.price}</p>
+                    <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
                     <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
                   </div>
                 </motion.div>
@@ -497,7 +510,7 @@ export default function Home() {
                   </div>
                   <div className="p-3 text-center">
                     <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
-                    <p className="text-pink-500 text-xs font-bold mt-1">{item.price}</p>
+                    <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
                     <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
                   </div>
                 </motion.div>
@@ -528,7 +541,7 @@ export default function Home() {
                   </div>
                   <div className="p-3 text-center">
                     <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
-                    <p className="text-pink-500 text-xs font-bold mt-1">{item.price}</p>
+                    <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
                     <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
                   </div>
                 </motion.div>

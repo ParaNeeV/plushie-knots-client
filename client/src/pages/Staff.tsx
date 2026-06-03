@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Plus, Search, Trash2, Pencil, X, Check,
-  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip,
+  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import StaffChat from "../components/StaffChat";
@@ -300,6 +300,23 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteTemp, setNoteTemp] = useState("");
   const [showChangePass, setShowChangePass] = useState(false);
+  const [activeTab, setActiveTab] = useState<"orders" | "prices">("orders");
+  const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
+  const [editingPrice, setEditingPrice] = useState<number | null>(null);
+  const [priceTemp, setPriceTemp] = useState("");
+
+  const fetchPrices = useCallback(async () => {
+    const { data } = await supabase.from("products").select("*").order("id");
+    if (data) setPrices(data as {id: number; name: string; price: string}[]);
+  }, []);
+
+  useEffect(() => { fetchPrices(); }, [fetchPrices]);
+
+  const savePrice = async (id: number) => {
+    setPrices(prev => prev.map(p => p.id === id ? { ...p, price: priceTemp } : p));
+    await supabase.from("products").update({ price: priceTemp }).eq("id", id);
+    setEditingPrice(null);
+  };
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
   const user = sessionStorage.getItem(SESSION_KEY) || "Staff";
@@ -426,8 +443,54 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           ))}
         </motion.div>
 
+        {/* Tabs */}
+        <div className="flex gap-2 mb-5">
+          <button onClick={() => setActiveTab("orders")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "orders" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+            <Package className="h-4 w-4" /> Orders
+          </button>
+          <button onClick={() => setActiveTab("prices")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "prices" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+            <Tag className="h-4 w-4" /> Manage Prices
+          </button>
+        </div>
+
+        {/* Prices Tab */}
+        {activeTab === "prices" && (
+          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-pink-100">
+              <h2 className="font-bold text-amber-900">Product Prices</h2>
+              <p className="text-xs text-amber-400 mt-0.5">Changes update the website instantly for customers 🌸</p>
+            </div>
+            <div className="divide-y divide-pink-50">
+              {prices.map((p) => (
+                <div key={p.id} className="flex items-center justify-between px-6 py-3">
+                  <span className="text-sm text-amber-800 font-medium">{p.name}</span>
+                  {editingPrice === p.id ? (
+                    <div className="flex items-center gap-2">
+                      <input autoFocus type="text" value={priceTemp} onChange={(e) => setPriceTemp(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") savePrice(p.id); if (e.key === "Escape") setEditingPrice(null); }}
+                        className="w-32 text-sm px-3 py-1.5 border-2 border-pink-200 rounded-xl focus:outline-none focus:border-pink-400 text-amber-900" />
+                      <button onClick={() => savePrice(p.id)} className="p-1.5 text-emerald-500 hover:text-emerald-700"><Check className="h-4 w-4" /></button>
+                      <button onClick={() => setEditingPrice(null)} className="p-1.5 text-amber-400 hover:text-amber-600"><X className="h-4 w-4" /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-pink-500">{p.price}</span>
+                      <button onClick={() => { setEditingPrice(p.id); setPriceTemp(p.price); }}
+                        className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Toolbar */}
-        <div className="flex flex-wrap gap-3 items-center mb-4">
+        {activeTab === "orders" && <div className="flex flex-wrap gap-3 items-center mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-300" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -450,10 +513,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             className="flex items-center gap-2 bg-pink-400 hover:bg-pink-500 text-white font-semibold rounded-2xl px-5 py-2.5 text-sm shadow-sm transition-colors">
             <Plus className="h-4 w-4" /> Add Order
           </motion.button>
-        </div>
+        </div>}
 
         {/* Table */}
-        <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+        <div className={activeTab === "orders" ? "bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden" : "hidden"}>
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-3">
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
