@@ -9,6 +9,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Staff from "./pages/Staff";
 import Blog from "./pages/Blog";
+import Track from "./pages/Track";
 
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/staff"} component={Staff} />
       <Route path={"/blog"} component={Blog} />
+      <Route path={"/track"} component={Track} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

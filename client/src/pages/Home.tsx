@@ -265,6 +265,15 @@ export default function Home() {
                 Blog
               </motion.a>
             </Link>
+            <Link href="/track">
+              <motion.a
+                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.55 }}
+                whileHover={{ y: -2 }}
+                className="bg-pink-400 hover:bg-pink-500 text-white text-sm font-semibold px-4 py-2 rounded-2xl transition-colors cursor-pointer">
+                Track Order
+              </motion.a>
+            </Link>
           </div>
           <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
             whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.95 }}
