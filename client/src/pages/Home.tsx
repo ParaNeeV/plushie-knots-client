@@ -11,6 +11,79 @@ const makeWhatsappLink = (msg: string) =>
   `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 const generalWhatsapp = makeWhatsappLink("Hi Jiya & Kiyoshi! I'm interested in your crochet products 🌸 Could you tell me more?");
 
+// ── Order Popup ──
+function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleOrder = async () => {
+    if (!name.trim()) { setErr("Please enter your name"); return; }
+    if (!phone.trim() || phone.trim().length < 10) { setErr("Please enter a valid phone number"); return; }
+    setLoading(true);
+    // Save to Supabase
+    await supabase.from("orders").insert({
+      name: name.trim(),
+      phone: phone.trim(),
+      product: productMsg.split("🌸")[0].replace("Hi! I'd love to order the ", "").replace("Hi! I'd like to place a custom order", "Custom Order").trim(),
+      description: productMsg,
+      status: "new",
+      notes: "",
+    });
+    // Open WhatsApp with name included
+    const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${name.trim()}\n📱 Phone: ${phone.trim()}\n\n${productMsg}`;
+    window.open(makeWhatsappLink(fullMsg), "_blank");
+    setLoading(false);
+    onClose();
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ opacity: 0, scale: 0.93, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-pink-100 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 text-center border-b border-pink-50">
+          <div className="text-3xl mb-2">🌸</div>
+          <h2 className="font-bold text-amber-900 text-lg">Almost there!</h2>
+          <p className="text-sm text-amber-500 mt-1">Just 2 quick details so Jiya & Kiyoshi know who you are</p>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Your Name</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="What should we call you?" autoFocus
+              className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Phone Number</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleOrder()}
+              placeholder="+91 98765 43210"
+              className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+          </div>
+          {err && <p className="text-xs text-red-500">{err}</p>}
+        </div>
+        <div className="flex gap-3 px-6 pb-6">
+          <button onClick={onClose}
+            className="flex-1 py-3 rounded-2xl border-2 border-pink-100 text-amber-700 text-sm font-medium hover:bg-pink-50 transition-colors">
+            Cancel
+          </button>
+          <motion.button onClick={handleOrder} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} disabled={loading}
+            className="flex-1 py-3 rounded-2xl bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+            {loading ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+            ) : (<><MessageCircle className="h-4 w-4" /> Open WhatsApp</>)}
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Reusable animation variants ──
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
@@ -179,6 +252,7 @@ export default function Home() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [formData, setFormData] = useState({ name: "", phone: "", product: "", message: "" });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [popupMsg, setPopupMsg] = useState<string | null>(null);
   const [dbPrices, setDbPrices] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -432,12 +506,11 @@ export default function Home() {
                     <Palette className="h-3.5 w-3.5 flex-shrink-0" />
                     Available in custom colours — just ask!
                   </div>
-                  <motion.a href={makeWhatsappLink(`Hi! I'd love to order the ${product.name} 🌸`)}
-                    target="_blank" rel="noopener noreferrer"
+                  <motion.button onClick={() => setPopupMsg(`Hi! I'd love to order the ${product.name} 🌸`)}
                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
                     <MessageCircle className="h-4 w-4" /> Order on WhatsApp
-                  </motion.a>
+                  </motion.button>
                 </div>
               </motion.div>
             ))}
