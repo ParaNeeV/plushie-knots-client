@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram } from "lucide-react";
+import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram, User, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { supabase } from "../lib/supabase";
@@ -7,31 +7,52 @@ import { useRef } from "react";
 import WaveDivider from "@/components/WaveDivider";
 
 const WHATSAPP_NUMBER = "917387042421";
+const PROFILE_KEY = "pk_customer_profile";
+
+function getProfile(): { name: string; phone: string } | null {
+  try { const r = localStorage.getItem(PROFILE_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
+}
+function saveProfile(name: string, phone: string) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify({ name, phone }));
+}
+function clearProfile() {
+  localStorage.removeItem(PROFILE_KEY);
+}
+function extractProduct(msg: string): string {
+  return msg
+    .replace("Hi! I'd love to order the ", "")
+    .replace(" keychain", "")
+    .replace("Hi Jiya & Kiyoshi! I'm interested in placing an order", "General Enquiry")
+    .split("🌸")[0]
+    .trim() || "Custom Order";
+}
 const makeWhatsappLink = (msg: string) =>
   `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 const generalWhatsapp = makeWhatsappLink("Hi Jiya & Kiyoshi! I'm interested in your crochet products 🌸 Could you tell me more?");
 
 // ── Order Popup ──
 function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () => void }) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const profile = getProfile();
+  const [name, setName] = useState(profile?.name || "");
+  const [phone, setPhone] = useState(profile?.phone || "");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const isReturning = !!profile;
+  const productName = extractProduct(productMsg);
 
   const handleOrder = async () => {
     if (!name.trim()) { setErr("Please enter your name"); return; }
     if (!phone.trim() || phone.trim().length < 10) { setErr("Please enter a valid phone number"); return; }
     setLoading(true);
-    // Save to Supabase
+    saveProfile(name.trim(), phone.trim());
     await supabase.from("orders").insert({
       name: name.trim(),
       phone: phone.trim(),
-      product: productMsg.split("🌸")[0].replace("Hi! I'd love to order the ", "").replace("Hi! I'd like to place a custom order", "Custom Order").trim(),
+      product: productName,
       description: productMsg,
       status: "new",
       notes: "",
     });
-    // Open WhatsApp with name included
     const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${name.trim()}\n📱 Phone: ${phone.trim()}\n\n${productMsg}`;
     window.open(makeWhatsappLink(fullMsg), "_blank");
     setLoading(false);
@@ -45,16 +66,23 @@ function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () =
       <motion.div initial={{ opacity: 0, scale: 0.93, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.93, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}
         className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-pink-100 overflow-hidden">
+
         <div className="px-6 pt-6 pb-4 text-center border-b border-pink-50">
-          <div className="text-3xl mb-2">🌸</div>
-          <h2 className="font-bold text-amber-900 text-lg">Almost there!</h2>
-          <p className="text-sm text-amber-500 mt-1">Just 2 quick details so Jiya & Kiyoshi know who you are</p>
+          <div className="text-3xl mb-2">{isReturning ? "👋" : "🌸"}</div>
+          <h2 className="font-bold text-amber-900 text-lg">
+            {isReturning ? `Welcome back, ${profile.name.split(" ")[0]}!` : "Almost there!"}
+          </h2>
+          <p className="text-sm text-amber-500 mt-1">
+            {isReturning ? `Ordering: ${productName}` : "Just 2 quick details so Jiya & Kiyoshi know who you are"}
+          </p>
         </div>
+
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Your Name</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="What should we call you?" autoFocus
+              placeholder="What should we call you?"
+              autoFocus={!isReturning}
               className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
           </div>
           <div>
@@ -65,7 +93,14 @@ function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () =
               className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
           </div>
           {err && <p className="text-xs text-red-500">{err}</p>}
+          {isReturning && (
+            <button onClick={() => { clearProfile(); onClose(); }}
+              className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-red-500 transition-colors">
+              <LogOut className="h-3 w-3" /> Not {profile.name.split(" ")[0]}? Switch account
+            </button>
+          )}
         </div>
+
         <div className="flex gap-3 px-6 pb-6">
           <button onClick={onClose}
             className="flex-1 py-3 rounded-2xl border-2 border-pink-100 text-amber-700 text-sm font-medium hover:bg-pink-50 transition-colors">
@@ -76,7 +111,7 @@ function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () =
             {loading ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
                 className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
-            ) : (<><MessageCircle className="h-4 w-4" /> Open WhatsApp</>)}
+            ) : (<><MessageCircle className="h-4 w-4" /> Order on WhatsApp</>)}
           </motion.button>
         </div>
       </motion.div>
@@ -252,6 +287,12 @@ export default function Home() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [formData, setFormData] = useState({ name: "", phone: "", product: "", message: "" });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [customerProfile, setCustomerProfile] = useState(getProfile());
+
+  const handleLogout = () => {
+    clearProfile();
+    setCustomerProfile(null);
+  };
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
   const [dbPrices, setDbPrices] = useState<Record<string, string>>({});
 
@@ -339,6 +380,25 @@ export default function Home() {
                 Blog
               </motion.a>
             </Link>
+            {customerProfile ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-pink-50 border border-pink-200 rounded-full px-3 py-1.5">
+                  <User className="h-3.5 w-3.5 text-pink-400" />
+                  <span className="text-xs font-semibold text-pink-600">{customerProfile.name.split(" ")[0]}</span>
+                </div>
+                <button onClick={handleLogout} className="p-1.5 rounded-full hover:bg-red-50 text-amber-400 hover:text-red-500 transition-colors" title="Sign out">
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
+                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.55 }}
+                whileHover={{ y: -2 }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 border border-pink-200 hover:border-pink-400 px-3 py-1.5 rounded-full transition-colors">
+                <User className="h-3.5 w-3.5" /> Sign in
+              </motion.button>
+            )}
 
           </div>
           <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
@@ -941,7 +1001,7 @@ export default function Home() {
 
       {/* Order Popup */}
       <AnimatePresence>
-        {popupMsg && <OrderPopup productMsg={popupMsg} onClose={() => setPopupMsg(null)} />}
+        {popupMsg && <OrderPopup productMsg={popupMsg} onClose={() => { setPopupMsg(null); setCustomerProfile(getProfile()); }} />}
       </AnimatePresence>
 
       {/* ── Floating WhatsApp ── */}
