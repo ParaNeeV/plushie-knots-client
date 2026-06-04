@@ -656,11 +656,12 @@ export default function Home() {
               <p className="text-amber-600 text-sm mb-7 max-w-sm mx-auto">
                 Customisation is available — pick your design, your colours, add a personal note. Made just for you.
               </p>
-              <motion.button onClick={() => setPopupMsg("Hi! I'd like to place a custom order 🌸 Can you help?")}
+              <motion.a href={makeWhatsappLink("Hi! I'd like to place a custom order 🌸 Can you help?")}
+                target="_blank" rel="noopener noreferrer"
                 whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
                 className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
                 <MessageCircle className="h-4 w-4" /> Chat & Order on WhatsApp
-              </motion.button>
+              </motion.a>
             </div>
           </Reveal>
         </div>
@@ -937,6 +938,11 @@ export default function Home() {
 
       {/* ── Corner Bear ── */}
       <CornerBear />
+
+      {/* Order Popup */}
+      <AnimatePresence>
+        {popupMsg && <OrderPopup productMsg={popupMsg} onClose={() => setPopupMsg(null)} />}
+      </AnimatePresence>
 
       {/* ── Floating WhatsApp ── */}
       <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
