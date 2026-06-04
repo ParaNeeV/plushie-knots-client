@@ -347,6 +347,26 @@ export default function Home() {
   const [customerProfile, setCustomerProfile] = useState(getProfile());
   const [showSignIn, setShowSignIn] = useState(false);
 
+  const handleOrder = async (productMsg: string) => {
+    const profile = getProfile();
+    if (profile) {
+      // Already signed in — go straight to WhatsApp
+      supabase.from("orders").insert({
+        name: profile.name,
+        phone: profile.phone,
+        product: extractProduct(productMsg),
+        description: productMsg,
+        status: "new",
+        notes: "",
+      });
+      const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${profile.name}\n📱 Phone: ${profile.phone}\n\n${productMsg}`;
+      window.open(makeWhatsappLink(fullMsg), "_blank");
+    } else {
+      // Not signed in — show popup
+      setPopupMsg(productMsg);
+    }
+  };
+
   const handleLogout = () => {
     clearProfile();
     setCustomerProfile(null);
@@ -459,7 +479,7 @@ export default function Home() {
             )}
 
           </div>
-          <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
+          <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
             whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.95 }}
             className="hidden md:flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-sm">
             <MessageCircle className="h-4 w-4" /> Order Now
@@ -494,7 +514,7 @@ export default function Home() {
                   Blog
                 </motion.a>
               </Link>
-              <motion.button onClick={() => { setMobileMenuOpen(false); setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸"); }}
+              <motion.button onClick={() => { setMobileMenuOpen(false); handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸"); }}
                 initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.28 }}
                 className="flex items-center justify-center gap-2 bg-green-500 text-white text-sm font-semibold px-4 py-3 rounded-2xl">
                 <MessageCircle className="h-4 w-4" /> Order on WhatsApp
@@ -557,7 +577,7 @@ export default function Home() {
               className="inline-flex items-center justify-center gap-2 bg-amber-800 hover:bg-amber-900 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md cursor-pointer">
               Shop Bestsellers ✨
             </motion.a>
-            <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
+            <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
               whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
               className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
               <MessageCircle className="h-4 w-4" /> Order on WhatsApp
@@ -624,7 +644,7 @@ export default function Home() {
                     <Palette className="h-3.5 w-3.5 flex-shrink-0" />
                     Available in custom colours — just ask!
                   </div>
-                  <motion.button onClick={() => setPopupMsg(`Hi! I'd love to order the ${product.name} 🌸`)}
+                  <motion.button onClick={() => handleOrder(`Hi! I'd love to order the ${product.name} 🌸`)}
                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
                     <MessageCircle className="h-4 w-4" /> Order on WhatsApp
@@ -662,7 +682,7 @@ export default function Home() {
               variants={staggerContainer(0.06)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {bouquets.map((item) => (
                 <motion.div key={item.name} variants={popIn}
-                  onClick={() => setPopupMsg(`Hi! I'd love to order the ${item.name} 🌸`)}
+                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
@@ -694,7 +714,7 @@ export default function Home() {
               variants={staggerContainer(0.08)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {keychains.map((item) => (
                 <motion.div key={item.name} variants={popIn}
-                  onClick={() => setPopupMsg(`Hi! I'd love to order the ${item.name} keychain 🌸`)}
+                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} keychain 🌸`)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
@@ -1040,7 +1060,7 @@ export default function Home() {
               </motion.a>
             ))}
           </div>
-          <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
+          <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
             whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
             className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-7 py-3 text-sm shadow-md mb-8">
             <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
