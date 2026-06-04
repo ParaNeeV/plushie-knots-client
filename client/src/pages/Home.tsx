@@ -30,6 +30,63 @@ const makeWhatsappLink = (msg: string) =>
   `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 const generalWhatsapp = makeWhatsappLink("Hi Jiya & Kiyoshi! I'm interested in your crochet products 🌸 Could you tell me more?");
 
+
+// ── Sign In Popup ──
+function SignInPopup({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [err, setErr] = useState("");
+
+  const handleSave = () => {
+    if (!name.trim()) { setErr("Please enter your name"); return; }
+    if (!phone.trim() || phone.trim().length < 10) { setErr("Please enter a valid phone number"); return; }
+    saveProfile(name.trim(), phone.trim());
+    onClose();
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ opacity: 0, scale: 0.93, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-pink-100 overflow-hidden">
+        <div className="px-6 pt-6 pb-4 text-center border-b border-pink-50">
+          <div className="text-3xl mb-2">🧶</div>
+          <h2 className="font-bold text-amber-900 text-lg">Save your details</h2>
+          <p className="text-sm text-amber-500 mt-1">So you don't have to fill this every time you order 🌸</p>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Your Name</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="What should we call you?" autoFocus
+              className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Phone Number</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              placeholder="+91 98765 43210"
+              className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+          </div>
+          {err && <p className="text-xs text-red-500">{err}</p>}
+        </div>
+        <div className="flex gap-3 px-6 pb-6">
+          <button onClick={onClose}
+            className="flex-1 py-3 rounded-2xl border-2 border-pink-100 text-amber-700 text-sm font-medium hover:bg-pink-50 transition-colors">
+            Cancel
+          </button>
+          <motion.button onClick={handleSave} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            className="flex-1 py-3 rounded-2xl bg-pink-400 hover:bg-pink-500 text-white text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+            <User className="h-4 w-4" /> Save & Continue
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Order Popup ──
 function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () => void }) {
   const profile = getProfile();
@@ -288,6 +345,7 @@ export default function Home() {
   const [formData, setFormData] = useState({ name: "", phone: "", product: "", message: "" });
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [customerProfile, setCustomerProfile] = useState(getProfile());
+  const [showSignIn, setShowSignIn] = useState(false);
 
   const handleLogout = () => {
     clearProfile();
@@ -391,7 +449,7 @@ export default function Home() {
                 </button>
               </div>
             ) : (
-              <motion.button onClick={() => setPopupMsg("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
+              <motion.button onClick={() => setShowSignIn(true)}
                 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.55 }}
                 whileHover={{ y: -2 }}
@@ -998,6 +1056,13 @@ export default function Home() {
 
       {/* ── Corner Bear ── */}
       <CornerBear />
+
+      {/* Sign In Popup */}
+      <AnimatePresence>
+        {showSignIn && (
+          <SignInPopup onClose={() => { setShowSignIn(false); setCustomerProfile(getProfile()); }} />
+        )}
+      </AnimatePresence>
 
       {/* Order Popup */}
       <AnimatePresence>
