@@ -228,6 +228,9 @@ const keychains = [
   { name: "Flower Keychains", img: "/kc-flowers.jpg", price: "₹99 each" },
   { name: "Cherry Keychain", img: "/kc-cherry.jpg", price: "₹99 each" },
   { name: "Bow Keychain", img: "/kc-bow.jpg", price: "₹119 each" },
+  { name: "Chick Keychain", img: "/kc-chick.jpg", price: "₹100" },
+  { name: "Bee Plushie", img: "/plushie-bee.jpg", price: "₹130" },
+  { name: "Car Hanging Duck", img: "/car-duck.jpg", price: "₹180" },
 ];
 
 const bouquets = [
@@ -242,6 +245,7 @@ const bouquets = [
   { name: "Sunflower + Daisy", img: "/bouquet-sunflower-daisy.jpg", price: "₹599" },
   { name: "Pink Lily Bouquet", img: "/bouquet-pink-lily.jpg", price: "₹399" },
   { name: "Red & White Rose Bouquet", img: "/bouquet-rose-luxury.jpg", price: "₹699" },
+  { name: "Orange Tulip Bouquet", img: "/bouquet-orange-tulip.jpg", price: "₹650" },
 ];
 
 const mirrorFlowers = [

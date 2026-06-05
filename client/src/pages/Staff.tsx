@@ -353,7 +353,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   const editOrder = async (data: typeof emptyForm) => {
-    await supabase.from("orders").update(data).eq("id", modal.editing!.id);
+    await supabase.from("orders").update({
+      name: data.name,
+      phone: data.phone,
+      product: data.product,
+      description: data.description,
+      notes: data.notes,
+    }).eq("id", modal.editing!.id);
     setModal({ open: false });
     fetchOrders();
   };
@@ -636,7 +642,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       <AnimatePresence>
         {modal.open && (
           <OrderFormModal
-            initial={modal.editing ? { name: modal.editing.name, email: modal.editing.email, product: modal.editing.product, description: modal.editing.description, notes: modal.editing.notes, id: modal.editing.id } : undefined}
+            initial={modal.editing ? { name: modal.editing.name, phone: modal.editing.phone, product: modal.editing.product, description: modal.editing.description, notes: modal.editing.notes, id: modal.editing.id } : undefined}
             onSave={modal.editing ? editOrder : addOrder}
             onClose={() => setModal({ open: false })}
           />
