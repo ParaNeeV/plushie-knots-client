@@ -246,6 +246,7 @@ const bouquets = [
   { name: "Pink Lily Bouquet", img: "/bouquet-pink-lily.jpg", price: "₹399" },
   { name: "Red & White Rose Bouquet", img: "/bouquet-rose-luxury.jpg", price: "₹699" },
   { name: "Orange Tulip Bouquet", img: "/bouquet-orange-tulip.jpg", price: "₹650" },
+  { name: "Orange Flower", img: "/bouquet-orange-flower.jpg", price: "₹350" },
 ];
 
 const mirrorFlowers = [
