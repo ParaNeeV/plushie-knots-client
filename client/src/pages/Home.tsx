@@ -751,6 +751,7 @@ export default function Home() {
               variants={staggerContainer(0.1)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {mirrorFlowers.map((item) => (
                 <motion.div key={item.name} variants={popIn}
+                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
