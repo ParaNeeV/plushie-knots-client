@@ -802,12 +802,11 @@ export default function Home() {
               <p className="text-amber-600 text-sm mb-7 max-w-sm mx-auto">
                 Customisation is available — pick your design, your colours, add a personal note. Made just for you.
               </p>
-              <motion.a href={makeWhatsappLink("Hi! I'd like to place a custom order 🌸 Can you help?")}
-                target="_blank" rel="noopener noreferrer"
+              <motion.button onClick={() => handleOrder("Hi! I'd like to place a custom order 🌸 Can you help?")}
                 whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
                 className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
                 <MessageCircle className="h-4 w-4" /> Chat & Order on WhatsApp
-              </motion.a>
+              </motion.button>
             </div>
           </Reveal>
         </div>
@@ -1098,7 +1097,7 @@ export default function Home() {
       </AnimatePresence>
 
       {/* ── Floating WhatsApp ── */}
-      <motion.a href={generalWhatsapp} target="_blank" rel="noopener noreferrer"
+      <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 18, delay: 1.2 }}
         whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
@@ -1108,7 +1107,7 @@ export default function Home() {
           <MessageCircle className="h-5 w-5" />
         </motion.div>
         <span className="text-sm hidden sm:inline">Order Now</span>
-      </motion.a>
+      </motion.button>
 
       {/* ── Back to Top ── */}
       <AnimatePresence>

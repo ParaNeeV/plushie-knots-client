@@ -510,7 +510,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     : "bg-pink-400 text-white border-pink-400"
                     : "bg-white text-amber-600 border-pink-100 hover:border-pink-300"
                 }`}>
-                {s === "all" ? `🌸 All (${orders.length})` : s === "customer" ? `📱 Customer (${orders.filter(o => o.source === "customer").length})` : `✍️ Staff (${orders.filter(o => o.source === "staff" || !o.source).length})`}
+                {s === "all" ? `🌸 All (${orders.length})` : s === "customer" ? `🌐 Website (${orders.filter(o => o.source === "customer").length})` : `✍️ Manual (${orders.filter(o => o.source === "staff" || !o.source).length})`}
               </button>
             ))}
           </div>
