@@ -20,6 +20,7 @@ interface Order {
   status: Status;
   notes: string;
   image_url?: string;
+  source?: string;
 }
 
 // ── Auth constants ─────────────────────────────────────────────────────
@@ -301,6 +302,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [noteTemp, setNoteTemp] = useState("");
   const [showChangePass, setShowChangePass] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "prices">("orders");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
   const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
   const [priceTemp, setPriceTemp] = useState("");
@@ -343,11 +345,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     const matchQ = !q || [o.name, o.phone, o.product, o.description].join(" ").toLowerCase().includes(q);
     const matchS = !filterStatus || o.status === filterStatus;
     const matchP = !filterProduct || o.product === filterProduct;
-    return matchQ && matchS && matchP;
+    const matchSrc = sourceFilter === "all" || (sourceFilter === "customer" ? o.source === "customer" : o.source === "staff" || !o.source);
+    return matchQ && matchS && matchP && matchSrc;
   });
 
   const addOrder = async (data: typeof emptyForm) => {
-    await supabase.from("orders").insert({ ...data, date: todayStr(), status: "new" });
+    await supabase.from("orders").insert({ ...data, date: todayStr(), status: "new", source: "staff" });
     setModal({ open: false });
     fetchOrders();
   };
@@ -492,6 +495,24 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Source Filter Tabs */}
+        {activeTab === "orders" && (
+          <div className="flex gap-2 mb-4">
+            {(["all", "customer", "staff"] as const).map((s) => (
+              <button key={s} onClick={() => setSourceFilter(s)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors border ${
+                  sourceFilter === s
+                    ? s === "customer" ? "bg-blue-400 text-white border-blue-400"
+                    : s === "staff" ? "bg-amber-400 text-white border-amber-400"
+                    : "bg-pink-400 text-white border-pink-400"
+                    : "bg-white text-amber-600 border-pink-100 hover:border-pink-300"
+                }`}>
+                {s === "all" ? `🌸 All (${orders.length})` : s === "customer" ? `📱 Customer (${orders.filter(o => o.source === "customer").length})` : `✍️ Staff (${orders.filter(o => o.source === "staff" || !o.source).length})`}
+              </button>
+            ))}
           </div>
         )}
 

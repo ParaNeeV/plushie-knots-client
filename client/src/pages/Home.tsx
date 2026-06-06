@@ -109,6 +109,7 @@ function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () =
       description: productMsg,
       status: "new",
       notes: "",
+      source: "customer",
     });
     const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${name.trim()}\n📱 Phone: ${phone.trim()}\n\n${productMsg}`;
     window.open(makeWhatsappLink(fullMsg), "_blank");
@@ -363,6 +364,7 @@ export default function Home() {
         description: productMsg,
         status: "new",
         notes: "",
+        source: "customer",
       });
       const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${profile.name}\n📱 Phone: ${profile.phone}\n\n${productMsg}`;
       window.open(makeWhatsappLink(fullMsg), "_blank");
