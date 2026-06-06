@@ -345,3 +345,10 @@
     animation: float-in 0.8s ease-out, gentle-float 3s ease-in-out 0.8s infinite;
   }
 }
+
+/* Darker placeholder text for better readability */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(74, 46, 43, 0.6) !important;
+  opacity: 1;
+}

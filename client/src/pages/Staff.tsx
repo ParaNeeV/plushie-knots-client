@@ -146,7 +146,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       const creds = loadCreds();
       const matchedKey = Object.keys(creds).find(k => k.toLowerCase() === username.toLowerCase());
       if (matchedKey && creds[matchedKey] === password) {
-        sessionStorage.setItem(SESSION_KEY, matchedKey);
+        localStorage.setItem(SESSION_KEY, matchedKey);
         onLogin();
       } else {
         setError("Incorrect username or password.");
@@ -319,7 +319,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   };
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
-  const user = sessionStorage.getItem(SESSION_KEY) || "Staff";
+  const user = localStorage.getItem(SESSION_KEY) || "Staff";
 
   // Fetch orders from Supabase
   const fetchOrders = useCallback(async () => {
@@ -683,7 +683,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 // ROOT
 // ══════════════════════════════════════════════════════════════════════
 export default function Staff() {
-  const [loggedIn, setLoggedIn] = useState(() => !!sessionStorage.getItem(SESSION_KEY));
-  const handleLogout = () => { sessionStorage.removeItem(SESSION_KEY); setLoggedIn(false); };
+  const [loggedIn, setLoggedIn] = useState(() => !!localStorage.getItem(SESSION_KEY));
+  const handleLogout = () => { localStorage.removeItem(SESSION_KEY); setLoggedIn(false); };
   return loggedIn ? <Dashboard onLogout={handleLogout} /> : <LoginScreen onLogin={() => setLoggedIn(true)} />;
 }

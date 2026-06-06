@@ -626,7 +626,7 @@ export default function Home() {
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className="group bg-white rounded-3xl overflow-hidden shadow-md border border-pink-100">
                 <div className="relative overflow-hidden h-72">
-                  <motion.img src={product.img} alt={product.name}
+                  <motion.img src={product.img} alt={`${product.name} - handmade crochet bouquet India`}
                     whileHover={{ scale: 1.07 }} transition={{ duration: 0.4 }}
                     className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
@@ -691,7 +691,7 @@ export default function Home() {
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
-                    <motion.img src={item.img} alt={item.name}
+                    <motion.img src={item.img} alt={`${item.name} - handmade crochet gift India`}
                       whileHover={{ scale: 1.12 }} transition={{ duration: 0.35 }}
                       className="w-full h-full object-cover" />
                   </div>
@@ -723,7 +723,7 @@ export default function Home() {
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
-                    <motion.img src={item.img} alt={item.name}
+                    <motion.img src={item.img} alt={`${item.name} - handmade crochet keychain India`}
                       whileHover={{ scale: 1.12 }} transition={{ duration: 0.35 }}
                       className="w-full h-full object-cover" />
                   </div>
@@ -755,7 +755,7 @@ export default function Home() {
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
-                    <motion.img src={item.img} alt={item.name}
+                    <motion.img src={item.img} alt={`${item.name} - handmade crochet gift India`}
                       whileHover={{ scale: 1.12 }} transition={{ duration: 0.35 }}
                       className="w-full h-full object-cover" />
                   </div>
@@ -1038,7 +1038,7 @@ export default function Home() {
                     <motion.button type="submit"
                       whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97 }}
                       className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-2xl py-4 text-sm shadow-md">
-                      <MessageCircle className="h-4 w-4" /> Send Inquiry
+                      <MessageCircle className="h-4 w-4" /> Send to Jiya & Kiyoshi 💌
                     </motion.button>
                   </motion.form>
                 )}
@@ -1076,7 +1076,7 @@ export default function Home() {
             <Instagram className="h-4 w-4" /> @plushie_knots_
           </a>
           <br />
-          <p className="text-xs text-amber-400">© 2025 Plushie Knots · Made with 💕 by Jiya & Kiyoshi</p>
+          <p className="text-xs text-amber-400">© 2026 Plushie Knots · Made with 💕 by Jiya & Kiyoshi</p>
         </div>
       </footer>
 
