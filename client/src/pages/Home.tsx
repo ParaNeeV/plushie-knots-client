@@ -158,18 +158,18 @@ function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () =
           )}
         </div>
 
-        <div className="flex gap-3 px-6 pb-6">
-          <button onClick={onClose}
-            className="flex-1 py-3 rounded-2xl border-2 border-pink-100 text-amber-700 text-sm font-medium hover:bg-pink-50 transition-colors">
-            Cancel
-          </button>
+        <div className="flex flex-col items-center gap-3 px-6 pb-6">
           <motion.button onClick={handleOrder} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} disabled={loading}
-            className="flex-1 py-3 rounded-2xl bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+            className="w-full py-3.5 rounded-2xl bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
             {loading ? (
               <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
                 className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
             ) : (<><MessageCircle className="h-4 w-4" /> Order on WhatsApp</>)}
           </motion.button>
+          <button onClick={onClose}
+            className="text-sm text-amber-500 hover:text-amber-700 transition-colors underline-offset-2 hover:underline">
+            Cancel
+          </button>
         </div>
       </motion.div>
     </motion.div>
@@ -911,7 +911,7 @@ export default function Home() {
             {[
               {
                 q: "📍 Where do you deliver?",
-                a: "We currently deliver within Pune only — we're a small homegrown business just getting started and we're so excited to grow! Local pickup is also available, just mention it when you order on WhatsApp 🌸"
+                a: "We deliver all across India! 🇮🇳 Local pickup in Pune is also available — just mention it when you order on WhatsApp 🌸"
               },
               {
                 q: "💳 How can I pay?",
