@@ -22,6 +22,7 @@ interface Order {
   image_url?: string;
   source?: string;
   deadline?: string;
+  price?: number;
 }
 
 // ── Auth constants ─────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ const statusMeta: Record<Status, { label: string; color: string }> = {
   done: { label: "Done", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
 };
 
-const emptyForm = { name: "", phone: "", product: "", description: "", notes: "", image_url: "", deadline: "" };
+const emptyForm = { name: "", phone: "", product: "", description: "", notes: "", image_url: "", deadline: "", price: "" };
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -341,17 +342,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     done: orders.filter((o) => o.status === "done").length,
   };
 
-  // Revenue from notes (extract numbers like "360rs", "₹360", "360")
-  const extractAmount = (note: string) => {
-    const match = note?.match(/[₹]?\s*(\d+)/);
-    return match ? parseInt(match[1]) : 0;
-  };
-  const totalRevenue = orders.reduce((sum, o) => sum + extractAmount(o.notes || ""), 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.price || 0), 0);
   const monthRevenue = orders.filter(o => {
     const d = new Date(o.date);
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).reduce((sum, o) => sum + extractAmount(o.notes || ""), 0);
+  }).reduce((sum, o) => sum + (o.price || 0), 0);
 
   // Upcoming deadlines (next 3 days)
   const urgentOrders = orders.filter(o => {
@@ -370,7 +366,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   });
 
   const addOrder = async (data: typeof emptyForm) => {
-    await supabase.from("orders").insert({ ...data, date: todayStr(), status: "new", source: "staff", deadline: data.deadline || null });
+    await supabase.from("orders").insert({ ...data, date: todayStr(), status: "new", source: "staff", deadline: data.deadline || null, price: data.price ? parseInt(String(data.price)) : 0 });
     setModal({ open: false });
     fetchOrders();
   };
@@ -383,6 +379,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       description: data.description,
       notes: data.notes,
       deadline: data.deadline || null,
+      price: data.price ? parseInt(String(data.price)) : 0,
     }).eq("id", modal.editing!.id);
     setModal({ open: false });
     fetchOrders();
@@ -643,6 +640,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                               }`}>
                                 <Calendar className="h-3 w-3" />Due {order.deadline}
                               </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {order.price ? (
+                              <span className="text-sm font-bold text-green-600">₹{order.price}</span>
+                            ) : (
+                              <span className="text-xs text-amber-300">—</span>
                             )}
                           </td>
                             <td className="px-4 py-3 whitespace-nowrap">
