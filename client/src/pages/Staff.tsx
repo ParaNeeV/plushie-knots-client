@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Plus, Search, Trash2, Pencil, X, Check,
-  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag,
+  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag, TrendingUp, Calendar,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import StaffChat from "../components/StaffChat";
@@ -21,6 +21,7 @@ interface Order {
   notes: string;
   image_url?: string;
   source?: string;
+  deadline?: string;
 }
 
 // ── Auth constants ─────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ const statusMeta: Record<Status, { label: string; color: string }> = {
   done: { label: "Done", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
 };
 
-const emptyForm = { name: "", phone: "", product: "", description: "", notes: "", image_url: "" };
+const emptyForm = { name: "", phone: "", product: "", description: "", notes: "", image_url: "", deadline: "" };
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -340,6 +341,25 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     done: orders.filter((o) => o.status === "done").length,
   };
 
+  // Revenue from notes (extract numbers like "360rs", "₹360", "360")
+  const extractAmount = (note: string) => {
+    const match = note?.match(/[₹]?\s*(\d+)/);
+    return match ? parseInt(match[1]) : 0;
+  };
+  const totalRevenue = orders.reduce((sum, o) => sum + extractAmount(o.notes || ""), 0);
+  const monthRevenue = orders.filter(o => {
+    const d = new Date(o.date);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).reduce((sum, o) => sum + extractAmount(o.notes || ""), 0);
+
+  // Upcoming deadlines (next 3 days)
+  const urgentOrders = orders.filter(o => {
+    if (!o.deadline) return false;
+    const diff = (new Date(o.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 3 && o.status !== "done";
+  });
+
   const filtered = orders.filter((o) => {
     const q = search.toLowerCase();
     const matchQ = !q || [o.name, o.phone, o.product, o.description].join(" ").toLowerCase().includes(q);
@@ -350,7 +370,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   });
 
   const addOrder = async (data: typeof emptyForm) => {
-    await supabase.from("orders").insert({ ...data, date: todayStr(), status: "new", source: "staff" });
+    await supabase.from("orders").insert({ ...data, date: todayStr(), status: "new", source: "staff", deadline: data.deadline || null });
     setModal({ open: false });
     fetchOrders();
   };
@@ -362,6 +382,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       product: data.product,
       description: data.description,
       notes: data.notes,
+      deadline: data.deadline || null,
     }).eq("id", modal.editing!.id);
     setModal({ open: false });
     fetchOrders();
@@ -436,7 +457,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Stats */}
-        <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"
+        <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"
           initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}>
           {[
             { label: "Total Orders", value: stats.total, color: "bg-white border-pink-100", val_color: "text-amber-900" },
@@ -451,6 +472,42 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </motion.div>
           ))}
         </motion.div>
+
+        {/* Revenue Cards */}
+        <motion.div className="grid grid-cols-2 gap-3 mb-4"
+          initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}>
+          {[
+            { label: "This Month Revenue", value: `₹${monthRevenue.toLocaleString()}`, color: "bg-purple-50 border-purple-200", val_color: "text-purple-600" },
+            { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}`, color: "bg-green-50 border-green-200", val_color: "text-green-600" },
+          ].map(({ label, value, color, val_color }) => (
+            <motion.div key={label} variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+              className={`rounded-2xl border p-4 flex items-center gap-3 ${color}`}>
+              <TrendingUp className={`h-5 w-5 flex-shrink-0 ${val_color}`} />
+              <div>
+                <p className="text-xs text-amber-500 mb-0.5">{label}</p>
+                <p className={`text-2xl font-bold ${val_color}`}>{value}</p>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Deadline Alerts */}
+        {urgentOrders.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 mb-4 flex items-start gap-3">
+            <Calendar className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-red-600">⚠️ Urgent — due in 3 days!</p>
+              <div className="mt-1 space-y-0.5">
+                {urgentOrders.map(o => (
+                  <p key={o.id} className="text-xs text-red-500">
+                    {o.name} — {o.product} — due {o.deadline}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-5">
@@ -577,7 +634,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                               <span className="inline-block text-xs bg-pink-50 text-pink-600 border border-pink-200 font-medium px-2.5 py-1 rounded-full">{order.product}</span>
                             </td>
                             <td className="px-4 py-3 text-amber-600 text-xs max-w-xs"><span className="line-clamp-2">{order.description}</span></td>
-                            <td className="px-4 py-3 text-amber-400 text-xs whitespace-nowrap">{order.date}</td>
+                            <td className="px-4 py-3 text-xs whitespace-nowrap">
+                            <p className="text-amber-400">{order.date}</p>
+                            {order.deadline && (
+                              <p className={`font-semibold mt-0.5 flex items-center gap-1 ${
+                                (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 1 ? "text-red-500" :
+                                (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 3 ? "text-orange-500" : "text-amber-500"
+                              }`}>
+                                <Calendar className="h-3 w-3" />Due {order.deadline}
+                              </p>
+                            )}
+                          </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <select value={order.status} onChange={(e) => changeStatus(order.id, e.target.value as Status)}
                                 className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${sm.color}`}>
