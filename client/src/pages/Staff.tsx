@@ -734,7 +734,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       <AnimatePresence>
         {modal.open && (
           <OrderFormModal
-            initial={modal.editing ? { name: modal.editing.name, phone: modal.editing.phone, product: modal.editing.product, description: modal.editing.description, notes: modal.editing.notes, id: modal.editing.id } : undefined}
+            initial={modal.editing ? { name: modal.editing.name, phone: modal.editing.phone, product: modal.editing.product, description: modal.editing.description, notes: modal.editing.notes, deadline: modal.editing.deadline || "", price: modal.editing.price ? String(modal.editing.price) : "", id: modal.editing.id } : undefined}
             onSave={modal.editing ? editOrder : addOrder}
             onClose={() => setModal({ open: false })}
           />

@@ -88,7 +88,7 @@ function SignInPopup({ onClose }: { onClose: () => void }) {
 }
 
 // ── Order Popup ──
-function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () => void }) {
+function OrderPopup({ productMsg, imgUrl, onClose }: { productMsg: string; imgUrl?: string; onClose: () => void }) {
   const profile = getProfile();
   const [name, setName] = useState(profile?.name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
@@ -111,7 +111,7 @@ function OrderPopup({ productMsg, onClose }: { productMsg: string; onClose: () =
       notes: "",
       source: "customer",
     });
-    const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${name.trim()}\n📱 Phone: ${phone.trim()}\n\n${productMsg}`;
+    const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${name.trim()}\n📱 Phone: ${phone.trim()}\n\n${productMsg}${imgUrl ? `\n\n🖼️ Product ref: https://plushie-knots-client.vercel.app${imgUrl}` : ""}`;
     window.open(makeWhatsappLink(fullMsg), "_blank");
     setLoading(false);
     onClose();
@@ -353,7 +353,7 @@ export default function Home() {
   const [customerProfile, setCustomerProfile] = useState(getProfile());
   const [showSignIn, setShowSignIn] = useState(false);
 
-  const handleOrder = async (productMsg: string) => {
+  const handleOrder = async (productMsg: string, imgUrl?: string) => {
     const profile = getProfile();
     if (profile) {
       // Already signed in — go straight to WhatsApp
@@ -366,10 +366,11 @@ export default function Home() {
         notes: "",
         source: "customer",
       });
-      const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${profile.name}\n📱 Phone: ${profile.phone}\n\n${productMsg}`;
+      const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${profile.name}\n📱 Phone: ${profile.phone}\n\n${productMsg}${imgUrl ? `\n\n🖼️ Product ref: https://plushie-knots-client.vercel.app${imgUrl}` : ""}`;
       window.open(makeWhatsappLink(fullMsg), "_blank");
     } else {
       // Not signed in — show popup
+      setPopupImg(imgUrl);
       setPopupMsg(productMsg);
     }
   };
@@ -379,6 +380,7 @@ export default function Home() {
     setCustomerProfile(null);
   };
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
+  const [popupImg, setPopupImg] = useState<string | undefined>(undefined);
   const [dbPrices, setDbPrices] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -693,7 +695,7 @@ export default function Home() {
                     <Palette className="h-3.5 w-3.5 flex-shrink-0" />
                     Available in custom colours — just ask!
                   </div>
-                  <motion.button onClick={() => handleOrder(`Hi! I'd love to order the ${product.name} 🌸`)}
+                  <motion.button onClick={() => handleOrder(`Hi! I'd love to order the ${product.name} 🌸`, product.img)}
                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
                     <MessageCircle className="h-4 w-4" /> Order on WhatsApp
@@ -731,7 +733,7 @@ export default function Home() {
               variants={staggerContainer(0.06)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {bouquets.map((item) => (
                 <motion.div key={item.name} variants={popIn}
-                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`)}
+                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`, item.img)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
@@ -763,7 +765,7 @@ export default function Home() {
               variants={staggerContainer(0.08)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {keychains.map((item) => (
                 <motion.div key={item.name} variants={popIn}
-                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} keychain 🌸`)}
+                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} keychain 🌸`, item.img)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
@@ -795,7 +797,7 @@ export default function Home() {
               variants={staggerContainer(0.1)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
               {mirrorFlowers.map((item) => (
                 <motion.div key={item.name} variants={popIn}
-                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`)}
+                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`, item.img)}
                   whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
                   <div className="h-48 overflow-hidden">
@@ -1135,7 +1137,7 @@ export default function Home() {
 
       {/* Order Popup */}
       <AnimatePresence>
-        {popupMsg && <OrderPopup productMsg={popupMsg} onClose={() => { setPopupMsg(null); setCustomerProfile(getProfile()); }} />}
+        {popupMsg && <OrderPopup productMsg={popupMsg} imgUrl={popupImg} onClose={() => { setPopupMsg(null); setPopupImg(undefined); setCustomerProfile(getProfile()); }} />}
       </AnimatePresence>
 
       {/* ── Floating WhatsApp ── */}
