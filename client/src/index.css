@@ -352,3 +352,14 @@ textarea::placeholder {
   color: rgba(74, 46, 43, 0.6) !important;
   opacity: 1;
 }
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 20s linear infinite;
+  display: flex;
+  width: max-content;
+}
+.marquee-track:hover { animation-play-state: paused; }

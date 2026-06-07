@@ -541,6 +541,32 @@ export default function Home() {
         <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
           className="absolute top-1/2 left-1/4 w-24 h-24 bg-rose-200 rounded-full opacity-15 blur-2xl pointer-events-none" />
 
+        {/* Floating product images */}
+        <motion.div
+          animate={{ y: [0, -12, 0], rotate: [-3, 0, -3] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute left-4 md:left-16 top-1/2 -translate-y-1/2 hidden md:block z-10 pointer-events-none">
+          <img src="/bouquet-orange-tulip.jpg" alt="Handmade orange tulip crochet bouquet" className="w-36 h-36 object-cover rounded-3xl shadow-xl border-4 border-white/80 rotate-[-6deg]" />
+        </motion.div>
+        <motion.div
+          animate={{ y: [0, 12, 0], rotate: [3, 0, 3] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          className="absolute right-4 md:right-16 top-1/2 -translate-y-1/2 hidden md:block z-10 pointer-events-none">
+          <img src="/bouquet-pink-lily.jpg" alt="Handmade pink lily crochet bouquet" className="w-36 h-36 object-cover rounded-3xl shadow-xl border-4 border-white/80 rotate-[6deg]" />
+        </motion.div>
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute right-8 md:right-32 top-8 hidden md:block z-10 pointer-events-none">
+          <img src="/kc-cherry.jpg" alt="Handmade cherry crochet keychain" className="w-20 h-20 object-cover rounded-2xl shadow-lg border-4 border-white/80 rotate-[10deg]" />
+        </motion.div>
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+          className="absolute left-8 md:left-32 bottom-8 hidden md:block z-10 pointer-events-none">
+          <img src="/mirror-daisy.jpg" alt="Handmade daisy mirror flower" className="w-20 h-20 object-cover rounded-2xl shadow-lg border-4 border-white/80 rotate-[-10deg]" />
+        </motion.div>
+
         <div className="container text-center max-w-3xl mx-auto px-4 relative">
           <motion.span initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.2 }}
@@ -605,6 +631,22 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+
+      {/* ── Marquee Strip ── */}
+      <div className="bg-pink-400 py-3 overflow-hidden">
+        <div className="marquee-track">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="flex items-center gap-0">
+              {["🌸 Handmade in Pune", "🎁 Perfect for gifting", "🌈 Custom colours available", "🚚 Delivered across India", "🧶 Made with love", "✨ 100% Handcrafted", "💝 Custom orders welcome", "🌺 Crochet bouquets", "🐝 Cute plushies"].map((item) => (
+                <span key={item} className="text-white font-semibold text-sm whitespace-nowrap px-8">
+                  {item}
+                  <span className="mx-4 opacity-50">·</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
 
       <WaveDivider fromColor="#fdf6ee" toColor="#fff7ed" />
 
