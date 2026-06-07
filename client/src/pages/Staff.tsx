@@ -609,7 +609,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-pink-100">
-                    {["Name", "Phone", "Product", "Description", "Date", "Status", "Notes", ""].map((h) => (
+                    {["Name", "Phone", "Product", "Description", "Date", "Price", "Status", "Notes", ""].map((h) => (
                       <th key={h} className="text-left text-xs font-bold text-amber-400 uppercase tracking-wider px-4 py-3 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -649,14 +649,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                               <span className="text-xs text-amber-300">—</span>
                             )}
                           </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <select value={order.status} onChange={(e) => changeStatus(order.id, e.target.value as Status)}
-                                className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${sm.color}`}>
-                                <option value="new">New</option>
-                                <option value="in-progress">In Progress</option>
-                                <option value="done">Done</option>
-                              </select>
-                            </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <select value={order.status} onChange={(e) => changeStatus(order.id, e.target.value as Status)}
+                              className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${sm.color}`}>
+                              <option value="new">New</option>
+                              <option value="in-progress">In Progress</option>
+                              <option value="done">Done</option>
+                            </select>
+                          </td>
                             <td className="px-4 py-3 min-w-[140px]">
                               {editingNoteId === order.id ? (
                                 <div className="flex items-center gap-1">
