@@ -1,7 +1,4 @@
 import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram, User, LogOut } from "lucide-react";
-
-// 🔴 Set to true to pause all orders (fully booked), false to resume
-const ORDERS_PAUSED = true;
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { supabase } from "../lib/supabase";
@@ -355,9 +352,16 @@ export default function Home() {
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [customerProfile, setCustomerProfile] = useState(getProfile());
   const [showSignIn, setShowSignIn] = useState(false);
+  const [ordersPaused, setOrdersPaused] = useState(false);
+
+  useEffect(() => {
+    supabase.from("settings").select("value").eq("key", "orders_paused").single().then(({ data }) => {
+      if (data) setOrdersPaused(data.value === "true");
+    });
+  }, []);
 
   const handleOrder = async (productMsg: string, imgUrl?: string) => {
-    if (ORDERS_PAUSED) return;
+    if (ordersPaused) return;
     const profile = getProfile();
     if (profile) {
       // Already signed in — go straight to WhatsApp
@@ -435,7 +439,7 @@ export default function Home() {
     <div className="min-h-screen bg-amber-50 overflow-x-hidden">
 
       {/* ── Fully Booked Banner ── */}
-      {ORDERS_PAUSED && (
+      {ordersPaused && (
         <div className="bg-amber-500 text-white text-xs font-semibold py-2.5 text-center tracking-wide z-[60] relative">
           🎀 We're fully booked right now — working hard on current orders! Check back soon 🧶
         </div>
@@ -500,10 +504,10 @@ export default function Home() {
 
           </div>
           <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
-            whileHover={{ scale: ORDERS_PAUSED ? 1 : 1.06 }} whileTap={{ scale: ORDERS_PAUSED ? 1 : 0.95 }}
-            disabled={ORDERS_PAUSED}
-            className={`hidden md:flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full shadow-sm ${ORDERS_PAUSED ? "bg-amber-300 text-white cursor-not-allowed" : "bg-green-500 hover:bg-green-600 text-white"}`}>
-            <MessageCircle className="h-4 w-4" /> {ORDERS_PAUSED ? "Fully Booked 🎀" : "Order Now"}
+            whileHover={{ scale: ordersPaused ? 1 : 1.06 }} whileTap={{ scale: ordersPaused ? 1 : 0.95 }}
+            disabled={ordersPaused}
+            className={`hidden md:flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full shadow-sm ${ordersPaused ? "bg-amber-300 text-white cursor-not-allowed" : "bg-green-500 hover:bg-green-600 text-white"}`}>
+            <MessageCircle className="h-4 w-4" /> {ordersPaused ? "Fully Booked 🎀" : "Order Now"}
           </motion.button>
           <motion.button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             whileTap={{ scale: 0.9 }}
@@ -1156,14 +1160,14 @@ export default function Home() {
       <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 18, delay: 1.2 }}
-        whileHover={{ scale: ORDERS_PAUSED ? 1 : 1.1 }} whileTap={{ scale: ORDERS_PAUSED ? 1 : 0.9 }}
-        disabled={ORDERS_PAUSED}
-        className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 font-semibold px-4 py-3.5 rounded-full shadow-xl ${ORDERS_PAUSED ? "bg-amber-400 text-white cursor-not-allowed" : "bg-green-500 text-white"}`}
-        style={{ boxShadow: ORDERS_PAUSED ? "0 6px 24px rgba(251,191,36,0.45)" : "0 6px 24px rgba(34,197,94,0.45)" }}>
-        <motion.div animate={ORDERS_PAUSED ? {} : { rotate: [0, -15, 15, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}>
+        whileHover={{ scale: ordersPaused ? 1 : 1.1 }} whileTap={{ scale: ordersPaused ? 1 : 0.9 }}
+        disabled={ordersPaused}
+        className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 font-semibold px-4 py-3.5 rounded-full shadow-xl ${ordersPaused ? "bg-amber-400 text-white cursor-not-allowed" : "bg-green-500 text-white"}`}
+        style={{ boxShadow: ordersPaused ? "0 6px 24px rgba(251,191,36,0.45)" : "0 6px 24px rgba(34,197,94,0.45)" }}>
+        <motion.div animate={ordersPaused ? {} : { rotate: [0, -15, 15, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}>
           <MessageCircle className="h-5 w-5" />
         </motion.div>
-        <span className="text-sm hidden sm:inline">{ORDERS_PAUSED ? "Fully Booked 🎀" : "Order Now"}</span>
+        <span className="text-sm hidden sm:inline">{ordersPaused ? "Fully Booked 🎀" : "Order Now"}</span>
       </motion.button>
 
       {/* ── Back to Top ── */}
