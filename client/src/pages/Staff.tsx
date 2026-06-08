@@ -324,6 +324,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
   const [priceTemp, setPriceTemp] = useState("");
+  const [ordersPaused, setOrdersPaused] = useState(false);
+
+  useEffect(() => {
+    supabase.from("settings").select("value").eq("key", "orders_paused").single().then(({ data }) => {
+      if (data) setOrdersPaused(data.value === "true");
+    });
+  }, []);
+
+  const toggleOrdersPaused = async () => {
+    const newVal = !ordersPaused;
+    setOrdersPaused(newVal);
+    await supabase.from("settings").update({ value: String(newVal) }).eq("key", "orders_paused");
+  };
 
   const fetchPrices = useCallback(async () => {
     const { data } = await supabase.from("products").select("*").order("id");
@@ -536,14 +549,21 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-5">
-          <button onClick={() => setActiveTab("orders")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "orders" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
-            <Package className="h-4 w-4" /> Orders
-          </button>
-          <button onClick={() => setActiveTab("prices")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "prices" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
-            <Tag className="h-4 w-4" /> Manage Prices
+        <div className="flex flex-wrap gap-2 mb-5 items-center justify-between">
+          <div className="flex gap-2">
+            <button onClick={() => setActiveTab("orders")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "orders" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+              <Package className="h-4 w-4" /> Orders
+            </button>
+            <button onClick={() => setActiveTab("prices")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "prices" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+              <Tag className="h-4 w-4" /> Manage Prices
+            </button>
+          </div>
+          {/* Site Orders Toggle */}
+          <button onClick={toggleOrdersPaused}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all border ${ordersPaused ? "bg-amber-400 text-white border-amber-400 hover:bg-amber-500" : "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600"}`}>
+            {ordersPaused ? "🔴 Fully Booked — Click to Reopen" : "🟢 Accepting Orders — Click to Pause"}
           </button>
         </div>
 
