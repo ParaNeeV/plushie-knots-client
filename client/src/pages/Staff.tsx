@@ -675,10 +675,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 <button onClick={() => { setEditingDeadlineId(order.id); setDeadlineTemp(order.deadline || ""); }}
                                   className="group flex items-center gap-1 mt-0.5">
                                   {order.deadline ? (
-                                    <p className={`font-semibold flex items-center gap-1 ${\
-                                      (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 1 ? "text-red-500" :\
-                                      (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 3 ? "text-orange-500" : "text-amber-500"\
-                                    }`}>
+                                    <p className={`font-semibold flex items-center gap-1 ${(new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 1 ? "text-red-500" : (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 3 ? "text-orange-500" : "text-amber-500"}`}>
                                       <Calendar className="h-3 w-3" />Due {order.deadline}
                                       <Pencil className="h-2 w-2 text-amber-200 group-hover:text-pink-400 transition-colors" />
                                     </p>
