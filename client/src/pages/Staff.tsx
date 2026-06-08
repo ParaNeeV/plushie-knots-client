@@ -273,6 +273,18 @@ function OrderFormModal({ initial, onSave, onClose }: OrderFormProps) {
             <textarea value={form.notes} onChange={set("notes")} rows={2} placeholder="Staff-only notes…"
               className="w-full px-4 py-2.5 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 resize-none transition-colors" />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Price (₹)</label>
+              <input type="number" min="0" value={form.price} onChange={set("price")} placeholder="e.g. 350"
+                className="w-full px-4 py-2.5 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Needed By</label>
+              <input type="date" value={form.deadline} onChange={set("deadline")}
+                className="w-full px-4 py-2.5 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 transition-colors" />
+            </div>
+          </div>
           <AnimatePresence>
             {err && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-xs text-red-500">{err}</motion.p>}
           </AnimatePresence>
@@ -302,6 +314,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteTemp, setNoteTemp] = useState("");
+  const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
+  const [priceCellTemp, setPriceCellTemp] = useState("");
+  const [editingDeadlineId, setEditingDeadlineId] = useState<number | null>(null);
+  const [deadlineTemp, setDeadlineTemp] = useState("");
   const [showChangePass, setShowChangePass] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "prices">("orders");
   const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
@@ -400,6 +416,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, notes: noteTemp } : o)));
     await supabase.from("orders").update({ notes: noteTemp }).eq("id", id);
     setEditingNoteId(null);
+  };
+
+  const saveInlinePrice = async (id: number) => {
+    const val = parseInt(priceCellTemp) || 0;
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, price: val } : o)));
+    await supabase.from("orders").update({ price: val }).eq("id", id);
+    setEditingPriceId(null);
+  };
+
+  const saveInlineDeadline = async (id: number) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, deadline: deadlineTemp || undefined } : o)));
+    await supabase.from("orders").update({ deadline: deadlineTemp || null }).eq("id", id);
+    setEditingDeadlineId(null);
   };
 
   const uploadImage = async (id: number, file: File) => {
@@ -632,21 +661,55 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                             </td>
                             <td className="px-4 py-3 text-amber-600 text-xs max-w-xs"><span className="line-clamp-2">{order.description}</span></td>
                             <td className="px-4 py-3 text-xs whitespace-nowrap">
-                            <p className="text-amber-400">{order.date}</p>
-                            {order.deadline && (
-                              <p className={`font-semibold mt-0.5 flex items-center gap-1 ${
-                                (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 1 ? "text-red-500" :
-                                (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 3 ? "text-orange-500" : "text-amber-500"
-                              }`}>
-                                <Calendar className="h-3 w-3" />Due {order.deadline}
-                              </p>
-                            )}
-                          </td>
+                              <p className="text-amber-400">{order.date}</p>
+                              {editingDeadlineId === order.id ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <input autoFocus type="date" value={deadlineTemp}
+                                    onChange={(e) => setDeadlineTemp(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") saveInlineDeadline(order.id); if (e.key === "Escape") setEditingDeadlineId(null); }}
+                                    className="text-xs px-2 py-1 border-2 border-pink-200 rounded-xl focus:outline-none focus:border-pink-400 text-amber-900" />
+                                  <button onClick={() => saveInlineDeadline(order.id)} className="p-1 text-emerald-500 hover:text-emerald-700"><Check className="h-3 w-3" /></button>
+                                  <button onClick={() => setEditingDeadlineId(null)} className="p-1 text-amber-400 hover:text-amber-600"><X className="h-3 w-3" /></button>
+                                </div>
+                              ) : (
+                                <button onClick={() => { setEditingDeadlineId(order.id); setDeadlineTemp(order.deadline || ""); }}
+                                  className="group flex items-center gap-1 mt-0.5">
+                                  {order.deadline ? (
+                                    <p className={`font-semibold flex items-center gap-1 ${\
+                                      (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 1 ? "text-red-500" :\
+                                      (new Date(order.deadline).getTime() - Date.now()) / (1000*60*60*24) <= 3 ? "text-orange-500" : "text-amber-500"\
+                                    }`}>
+                                      <Calendar className="h-3 w-3" />Due {order.deadline}
+                                      <Pencil className="h-2 w-2 text-amber-200 group-hover:text-pink-400 transition-colors" />
+                                    </p>
+                                  ) : (
+                                    <span className="text-amber-200 hover:text-pink-400 transition-colors flex items-center gap-1 italic">
+                                      <Calendar className="h-3 w-3" />Set due date
+                                    </span>
+                                  )}
+                                </button>
+                              )}
+                            </td>
                           <td className="px-4 py-3 whitespace-nowrap">
-                            {order.price ? (
-                              <span className="text-sm font-bold text-green-600">₹{order.price}</span>
+                            {editingPriceId === order.id ? (
+                              <div className="flex items-center gap-1">
+                                <input autoFocus type="number" min="0" value={priceCellTemp}
+                                  onChange={(e) => setPriceCellTemp(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") saveInlinePrice(order.id); if (e.key === "Escape") setEditingPriceId(null); }}
+                                  className="w-20 text-xs px-2 py-1.5 border-2 border-pink-200 rounded-xl focus:outline-none focus:border-pink-400 text-amber-900" />
+                                <button onClick={() => saveInlinePrice(order.id)} className="p-1 text-emerald-500 hover:text-emerald-700"><Check className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => setEditingPriceId(null)} className="p-1 text-amber-400 hover:text-amber-600"><X className="h-3.5 w-3.5" /></button>
+                              </div>
                             ) : (
-                              <span className="text-xs text-amber-300">—</span>
+                              <button onClick={() => { setEditingPriceId(order.id); setPriceCellTemp(order.price ? String(order.price) : ""); }}
+                                className="group flex items-center gap-1 hover:opacity-80 transition-opacity">
+                                {order.price ? (
+                                  <span className="text-sm font-bold text-green-600">₹{order.price}</span>
+                                ) : (
+                                  <span className="text-xs text-amber-300 italic">Add ₹</span>
+                                )}
+                                <Pencil className="h-2.5 w-2.5 text-amber-200 group-hover:text-pink-400 transition-colors" />
+                              </button>
                             )}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
