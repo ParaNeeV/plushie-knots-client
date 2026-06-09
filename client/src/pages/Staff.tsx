@@ -365,7 +365,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("waitlist").delete().eq("id", id);
     setWaitlist(prev => prev.filter(w => w.id !== id));
   };
-  const [activeTab, setActiveTab] = useState<"orders" | "prices" | "waitlist">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "prices" | "waitlist" | "analytics">("orders");
   const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
   const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
@@ -423,6 +423,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).reduce((sum, o) => sum + (o.price || 0), 0);
+
+  // Product breakdown
+  const productStats = Object.values(
+    orders.reduce((acc, o) => {
+      const key = o.product || "Unknown";
+      if (!acc[key]) acc[key] = { name: key, count: 0, revenue: 0 };
+      acc[key].count += 1;
+      acc[key].revenue += o.price || 0;
+      return acc;
+    }, {} as Record<string, { name: string; count: number; revenue: number }>)
+  ).sort((a, b) => b.count - a.count);
 
   // Upcoming deadlines (next 3 days)
   const urgentOrders = orders.filter(o => {
@@ -633,6 +644,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <Clock className="h-4 w-4" /> Waitlist
             {waitlist.length > 0 && <span className="bg-amber-400 text-white text-xs px-1.5 py-0.5 rounded-full">{waitlist.length}</span>}
           </button>
+          <button onClick={() => setActiveTab("analytics")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "analytics" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+            <TrendingUp className="h-4 w-4" /> Analytics
+          </button>
         </div>
 
         {/* Prices Tab */}
@@ -708,6 +723,69 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === "analytics" && (
+          <div className="space-y-4 mb-6">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white border border-pink-100 rounded-2xl p-4">
+                <p className="text-xs text-amber-400 mb-1">Total Orders</p>
+                <p className="text-2xl font-bold text-amber-900">{orders.length}</p>
+              </div>
+              <div className="bg-white border border-green-100 rounded-2xl p-4">
+                <p className="text-xs text-amber-400 mb-1">Total Revenue</p>
+                <p className="text-2xl font-bold text-green-600">₹{totalRevenue.toLocaleString()}</p>
+              </div>
+              <div className="bg-white border border-pink-100 rounded-2xl p-4">
+                <p className="text-xs text-amber-400 mb-1">Avg Order Value</p>
+                <p className="text-2xl font-bold text-pink-500">₹{orders.length ? Math.round(totalRevenue / orders.length) : 0}</p>
+              </div>
+              <div className="bg-white border border-purple-100 rounded-2xl p-4">
+                <p className="text-xs text-amber-400 mb-1">This Month</p>
+                <p className="text-2xl font-bold text-purple-500">₹{monthRevenue.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Product breakdown */}
+            <div className="bg-white border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-pink-100">
+                <h2 className="font-bold text-amber-900">Product Breakdown</h2>
+                <p className="text-xs text-amber-400 mt-0.5">Sorted by most ordered 🏆</p>
+              </div>
+              <div className="divide-y divide-pink-50">
+                {productStats.map((p, i) => {
+                  const img = getProductImage(p.name);
+                  const maxCount = productStats[0]?.count || 1;
+                  return (
+                    <div key={p.name} className="flex items-center gap-4 px-6 py-3">
+                      <span className={`text-sm font-bold w-5 text-center ${i === 0 ? "text-amber-500" : i === 1 ? "text-amber-400" : i === 2 ? "text-amber-300" : "text-amber-200"}`}>
+                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
+                      </span>
+                      {img ? (
+                        <img src={img} alt={p.name} className="h-9 w-9 rounded-xl object-cover border border-pink-100 flex-shrink-0" />
+                      ) : (
+                        <div className="h-9 w-9 rounded-xl bg-pink-50 flex items-center justify-center flex-shrink-0 text-base">🧶</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                          <div className="flex items-center gap-3 ml-2 flex-shrink-0">
+                            <span className="text-xs font-bold text-pink-500">{p.count} orders</span>
+                            {p.revenue > 0 && <span className="text-xs font-bold text-green-600">₹{p.revenue.toLocaleString()}</span>}
+                          </div>
+                        </div>
+                        <div className="w-full bg-pink-50 rounded-full h-1.5">
+                          <div className="bg-pink-400 h-1.5 rounded-full transition-all" style={{ width: `${(p.count / maxCount) * 100}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
