@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Plus, Search, Trash2, Pencil, X, Check,
-  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag, TrendingUp, Calendar,
+  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag, TrendingUp, Calendar, Settings,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import StaffChat from "../components/StaffChat";
@@ -319,6 +319,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [editingDeadlineId, setEditingDeadlineId] = useState<number | null>(null);
   const [deadlineTemp, setDeadlineTemp] = useState("");
   const [showChangePass, setShowChangePass] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<"orders" | "prices">("orders");
   const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
   const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
@@ -486,6 +487,29 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-pink-500 border border-pink-100 hover:border-pink-300 rounded-xl px-3 py-2 transition-colors">
               <KeyRound className="h-3.5 w-3.5" /> Change Password
             </button>
+            {/* Settings gear */}
+            <div className="relative">
+              <button onClick={() => setShowSettings(s => !s)}
+                className={`p-2 rounded-xl border transition-colors ${showSettings ? "bg-pink-50 border-pink-300 text-pink-500" : "border-pink-100 hover:border-pink-300 text-amber-600 hover:text-pink-500"}`}>
+                <Settings className="h-4 w-4" />
+              </button>
+              {showSettings && (
+                <div className="absolute right-0 top-10 z-50 bg-white border border-pink-100 rounded-2xl shadow-xl p-4 w-64">
+                  <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3">Site Settings</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900">Orders</p>
+                      <p className="text-xs text-amber-400">{ordersPaused ? "Currently paused" : "Accepting orders"}</p>
+                    </div>
+                    <button onClick={toggleOrdersPaused}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${ordersPaused ? "bg-amber-400" : "bg-emerald-500"}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${ordersPaused ? "translate-x-1" : "translate-x-6"}`} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-amber-300 mt-2">{ordersPaused ? "🔴 Site shows fully booked" : "🟢 Site accepting orders"}</p>
+                </div>
+              )}
+            </div>
             <button onClick={onLogout}
               className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-red-500 border border-pink-100 hover:border-red-200 rounded-xl px-3 py-2 transition-colors">
               <LogOut className="h-3.5 w-3.5" /> Sign Out
@@ -549,21 +573,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
         {/* Tabs */}
-        <div className="flex flex-wrap gap-2 mb-5 items-center justify-between">
-          <div className="flex gap-2">
-            <button onClick={() => setActiveTab("orders")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "orders" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
-              <Package className="h-4 w-4" /> Orders
-            </button>
-            <button onClick={() => setActiveTab("prices")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "prices" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
-              <Tag className="h-4 w-4" /> Manage Prices
-            </button>
-          </div>
-          {/* Site Orders Toggle */}
-          <button onClick={toggleOrdersPaused}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all border ${ordersPaused ? "bg-amber-400 text-white border-amber-400 hover:bg-amber-500" : "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600"}`}>
-            {ordersPaused ? "🔴 Fully Booked — Click to Reopen" : "🟢 Accepting Orders — Click to Pause"}
+        <div className="flex gap-2 mb-5">
+          <button onClick={() => setActiveTab("orders")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "orders" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+            <Package className="h-4 w-4" /> Orders
+          </button>
+          <button onClick={() => setActiveTab("prices")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "prices" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+            <Tag className="h-4 w-4" /> Manage Prices
           </button>
         </div>
 
