@@ -331,7 +331,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("waitlist").delete().eq("id", id);
     setWaitlist(prev => prev.filter(w => w.id !== id));
   };
-  const [activeTab, setActiveTab] = useState<"orders" | "prices">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "prices" | "waitlist">("orders");
   const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
   const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
@@ -505,7 +505,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <Settings className="h-4 w-4" />
               </button>
               {showSettings && (
-                <div className="absolute right-0 top-10 z-50 bg-white border border-pink-100 rounded-2xl shadow-xl p-4 w-72 max-h-[80vh] overflow-y-auto">
+                <div className="absolute right-0 top-10 z-50 bg-white border border-pink-100 rounded-2xl shadow-xl p-4 w-56">
                   <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3">Site Settings</p>
                   {/* Orders toggle */}
                   <div className="flex items-center justify-between gap-3 mb-1">
@@ -519,34 +519,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     </button>
                   </div>
                   <p className="text-xs text-amber-300 mb-4">{ordersPaused ? "🔴 Site shows fully booked" : "🟢 Site accepting orders"}</p>
-
-                  {/* Waitlist */}
-                  <div className="border-t border-pink-100 pt-3">
-                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">
-                      Waitlist {waitlist.length > 0 && <span className="ml-1 bg-pink-400 text-white px-1.5 py-0.5 rounded-full text-xs">{waitlist.length}</span>}
-                    </p>
-                    {waitlist.length === 0 ? (
-                      <p className="text-xs text-amber-300 italic">No one on the waitlist yet 🌸</p>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        {waitlist.map(w => (
-                          <div key={w.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
-                            <div>
-                              <p className="text-xs font-semibold text-amber-900">{w.name}</p>
-                              <a href={`https://wa.me/91${w.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
-                                className="text-xs text-emerald-600 hover:underline font-medium">
-                                📱 {w.phone}
-                              </a>
-                            </div>
-                            <button onClick={() => clearWaitlistEntry(w.id)}
-                              className="p-1 text-amber-300 hover:text-red-400 transition-colors">
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
@@ -622,6 +594,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "prices" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
             <Tag className="h-4 w-4" /> Manage Prices
           </button>
+          <button onClick={() => { setActiveTab("waitlist"); fetchWaitlist(); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "waitlist" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+            <Clock className="h-4 w-4" /> Waitlist
+            {waitlist.length > 0 && <span className="bg-amber-400 text-white text-xs px-1.5 py-0.5 rounded-full">{waitlist.length}</span>}
+          </button>
         </div>
 
         {/* Prices Tab */}
@@ -654,6 +631,40 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Waitlist Tab */}
+        {activeTab === "waitlist" && (
+          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden mb-6">
+            <div className="px-6 py-4 border-b border-pink-100">
+              <h2 className="font-bold text-amber-900">Waitlist</h2>
+              <p className="text-xs text-amber-400 mt-0.5">Customers waiting to order when you reopen 🔔</p>
+            </div>
+            <div className="p-4">
+              {waitlist.length === 0 ? (
+                <p className="text-center text-amber-300 italic py-8 text-sm">No one on the waitlist yet 🌸</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {waitlist.map(w => (
+                    <div key={w.id} className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-amber-900">{w.name}</p>
+                        <a href={`https://wa.me/91${w.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+                          className="text-xs text-emerald-600 hover:underline font-medium flex items-center gap-1 mt-0.5">
+                          📱 {w.phone}
+                        </a>
+                        <p className="text-xs text-amber-300 mt-0.5">{new Date(w.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                      </div>
+                      <button onClick={() => clearWaitlistEntry(w.id)}
+                        className="p-1.5 text-amber-200 hover:text-red-400 transition-colors rounded-xl hover:bg-red-50">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
