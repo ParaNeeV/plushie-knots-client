@@ -10,6 +10,8 @@ import Home from "./pages/Home";
 import Staff from "./pages/Staff";
 import Blog from "./pages/Blog";
 import Track from "./pages/Track";
+import Privacy from "./pages/Privacy";
+import Returns from "./pages/Returns";
 
 
 function Router() {
@@ -19,6 +21,8 @@ function Router() {
       <Route path={"/staff"} component={Staff} />
       <Route path={"/blog"} component={Blog} />
       <Route path={"/track"} component={Track} />
+      <Route path={"/privacy"} component={Privacy} />
+      <Route path={"/returns"} component={Returns} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
