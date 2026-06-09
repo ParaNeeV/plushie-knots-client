@@ -318,10 +318,6 @@ const PRODUCT_IMAGES: Record<string, string> = {
   "Red & White Rose Bouquet": "/bouquet-rose-luxury.jpg",
   "Orange Tulip Bouquet": "/bouquet-orange-tulip.jpg",
   "Orange Flower": "/bouquet-orange-flower.jpg",
-  "Sunflower Tulip Bouquet": "/bouquet-sunflower-tulip.jpg",
-  "Pink Tulips": "/pink-tulips.jpg",
-  "Pink Peonies": "/pink-peonies.jpg",
-  "Pink Rose": "/pink-rose.jpg",
   "Flower Bouquet Keychain": "/kc-bouquet.jpg",
   "Flower Keychains": "/kc-flowers.jpg",
   "Cherry Keychain": "/kc-cherry.jpg",
@@ -331,17 +327,11 @@ const PRODUCT_IMAGES: Record<string, string> = {
   "Daisy Mirror Flower": "/mirror-daisy.jpg",
   "Bee Plushie": "/plushie-bee.jpg",
   "Car Hanging Duck": "/car-duck.jpg",
-  "Sunflower Pipe": "/sunflower-pipe.jpg",
-  "Crochet Keychains": "/kc-flowers.jpg",
-  "Flower Bouquet": "/bouquet-pink-lily.jpg",
 };
 
-function getProductImage(product: string): string | null {
-  if (!product) return null;
-  // exact match first
-  if (PRODUCT_IMAGES[product]) return PRODUCT_IMAGES[product];
-  // partial match
-  const lower = product.toLowerCase();
+function getProductImage(name: string): string | null {
+  if (PRODUCT_IMAGES[name]) return PRODUCT_IMAGES[name];
+  const lower = name.toLowerCase();
   for (const [key, val] of Object.entries(PRODUCT_IMAGES)) {
     if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) return val;
   }
@@ -655,7 +645,16 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             <div className="divide-y divide-pink-50">
               {prices.map((p) => (
                 <div key={p.id} className="flex items-center justify-between px-6 py-3">
-                  <span className="text-sm text-amber-800 font-medium">{p.name}</span>
+                  <div className="flex items-center gap-3">
+                    {getProductImage(p.name) ? (
+                      <img src={getProductImage(p.name)!} alt={p.name} className="h-10 w-10 rounded-xl object-cover border border-pink-100 flex-shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg">🧶</span>
+                      </div>
+                    )}
+                    <span className="text-sm text-amber-800 font-medium">{p.name}</span>
+                  </div>
                   {editingPrice === p.id ? (
                     <div className="flex items-center gap-2">
                       <input autoFocus type="text" value={priceTemp} onChange={(e) => setPriceTemp(e.target.value)}
@@ -789,13 +788,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                             <td className="px-4 py-3 font-medium text-amber-900 whitespace-nowrap">{order.name}</td>
                             <td className="px-4 py-3 text-amber-500 text-xs whitespace-nowrap">{order.phone || "—"}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="flex items-center gap-2">
-                                {getProductImage(order.product) && (
-                                  <img src={getProductImage(order.product)!} alt={order.product}
-                                    className="h-8 w-8 rounded-lg object-cover border border-pink-100 flex-shrink-0" />
-                                )}
-                                <span className="inline-block text-xs bg-pink-50 text-pink-600 border border-pink-200 font-medium px-2.5 py-1 rounded-full">{order.product}</span>
-                              </div>
+                              <span className="inline-block text-xs bg-pink-50 text-pink-600 border border-pink-200 font-medium px-2.5 py-1 rounded-full">{order.product}</span>
                             </td>
                             <td className="px-4 py-3 text-amber-600 text-xs max-w-xs"><span className="line-clamp-2">{order.description}</span></td>
                             <td className="px-4 py-3 text-xs whitespace-nowrap">
