@@ -1139,31 +1139,54 @@ export default function Home() {
 
       {/* ── Footer ── */}
       <footer className="py-14 bg-amber-50 border-t border-pink-100">
-        <div className="container text-center">
-          <motion.img src="/logo.jpg" alt="Plushie Knots" whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 300 }}
-            className="h-14 w-14 rounded-full object-cover border-2 border-pink-200 shadow-md mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-amber-900 mb-1">Plushie Knots</h3>
-          <p className="text-amber-500 text-xs italic mb-6">handmade with love, one stitch at a time 🌸</p>
-          <div className="flex items-center justify-center gap-5 flex-wrap mb-8">
-            {["bestsellers", "products", "about", "contact"].map(s => (
-              <motion.a key={s} href={`#${s}`} whileHover={{ y: -2, color: "#f472b6" }}
-                className="text-amber-600 text-xs capitalize transition-colors">
-                {s}
-              </motion.a>
-            ))}
+        <div className="container">
+          {/* Logo + tagline */}
+          <div className="text-center mb-10">
+            <motion.img src="/logo.jpg" alt="Plushie Knots" whileHover={{ scale: 1.1, rotate: 5 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="h-14 w-14 rounded-full object-cover border-2 border-pink-200 shadow-md mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-amber-900 mb-1">Plushie Knots</h3>
+            <p className="text-amber-500 text-xs italic">handmade with love, one stitch at a time 🌸</p>
           </div>
-          <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
-            whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
-            className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-7 py-3 text-sm shadow-md mb-8">
-            <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
-          </motion.button>
-          <a href="https://www.instagram.com/plushie_knots_" target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-amber-600 hover:text-pink-500 text-xs transition-colors mb-4">
-            <Instagram className="h-4 w-4" /> @plushie_knots_
-          </a>
-          <br />
-          <p className="text-xs text-amber-400">© 2026 Plushie Knots · Made with 💕 by Jiya & Kiyoshi</p>
+
+          {/* 3 column links */}
+          <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto mb-10 text-center">
+            <div>
+              <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-3">Shop</p>
+              <div className="space-y-2">
+                {[["Bouquets", "#products"], ["Keychains", "#products"], ["Plushies", "#products"], ["Custom Order", "#contact"]].map(([label, href]) => (
+                  <a key={label} href={href} className="block text-xs text-amber-400 hover:text-pink-500 transition-colors">{label}</a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-3">More</p>
+              <div className="space-y-2">
+                {[["About", "#about"], ["Blog", "/blog"], ["FAQ", "#faq"], ["Contact", "#contact"]].map(([label, href]) => (
+                  <a key={label} href={href} className="block text-xs text-amber-400 hover:text-pink-500 transition-colors">{label}</a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-3">Connect</p>
+              <div className="space-y-2">
+                <a href="https://www.instagram.com/plushie_knots_" target="_blank" rel="noopener noreferrer"
+                  className="block text-xs text-amber-400 hover:text-pink-500 transition-colors">Instagram</a>
+                <a href="https://wa.me/91" target="_blank" rel="noopener noreferrer"
+                  className="block text-xs text-amber-400 hover:text-pink-500 transition-colors">WhatsApp</a>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="border-t border-pink-100 pt-6 text-center">
+            <p className="text-xs text-amber-400 mb-2">© 2026 Plushie Knots · Made with 💕 by Jiya & Kiyoshi</p>
+            <div className="flex items-center justify-center gap-4">
+              <a href="/privacy" className="text-xs text-amber-300 hover:text-pink-400 transition-colors">Privacy Policy</a>
+              <span className="text-amber-200">·</span>
+              <a href="/returns" className="text-xs text-amber-300 hover:text-pink-400 transition-colors">Return & Refund</a>
+            </div>
+          </div>
         </div>
       </footer>
 
