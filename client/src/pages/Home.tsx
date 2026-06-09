@@ -353,6 +353,17 @@ export default function Home() {
   const [customerProfile, setCustomerProfile] = useState(getProfile());
   const [showSignIn, setShowSignIn] = useState(false);
   const [ordersPaused, setOrdersPaused] = useState(false);
+  const [waitlistName, setWaitlistName] = useState("");
+  const [waitlistPhone, setWaitlistPhone] = useState("");
+  const [waitlistDone, setWaitlistDone] = useState(false);
+
+  const submitWaitlist = async () => {
+    if (!waitlistName.trim() || !waitlistPhone.trim()) return;
+    await supabase.from("waitlist").insert({ name: waitlistName.trim(), phone: waitlistPhone.trim() });
+    setWaitlistDone(true);
+    setWaitlistName("");
+    setWaitlistPhone("");
+  };
 
   useEffect(() => {
     supabase.from("settings").select("value").eq("key", "orders_paused").single().then(({ data }) => {
@@ -438,10 +449,25 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-amber-50 overflow-x-hidden">
 
-      {/* ── Fully Booked Banner ── */}
+      {/* ── Fully Booked Banner + Waitlist ── */}
       {ordersPaused && (
-        <div className="bg-amber-500 text-white text-xs font-semibold py-2.5 text-center tracking-wide z-[60] relative">
-          🎀 We're fully booked right now — working hard on current orders! Check back soon 🧶
+        <div className="bg-amber-50 border-b-2 border-amber-200 py-5 px-4 text-center z-[60] relative">
+          <p className="text-amber-700 font-bold text-base mb-1">🎀 We're fully booked right now!</p>
+          <p className="text-amber-500 text-sm mb-4">Working hard on current orders. Leave your details and we'll WhatsApp you when we reopen 🧶</p>
+          {waitlistDone ? (
+            <p className="text-emerald-600 font-semibold text-sm">✅ You're on the list! We'll let you know when we're back 🌸</p>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 max-w-md mx-auto">
+              <input value={waitlistName} onChange={e => setWaitlistName(e.target.value)} placeholder="Your name"
+                className="w-full sm:w-auto flex-1 px-4 py-2 rounded-2xl border-2 border-amber-200 focus:border-amber-400 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 bg-white" />
+              <input value={waitlistPhone} onChange={e => setWaitlistPhone(e.target.value)} placeholder="WhatsApp number"
+                className="w-full sm:w-auto flex-1 px-4 py-2 rounded-2xl border-2 border-amber-200 focus:border-amber-400 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 bg-white" />
+              <button onClick={submitWaitlist}
+                className="w-full sm:w-auto px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-2xl text-sm transition-colors">
+                Notify Me 🔔
+              </button>
+            </div>
+          )}
         </div>
       )}
 

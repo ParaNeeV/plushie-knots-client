@@ -320,6 +320,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [deadlineTemp, setDeadlineTemp] = useState("");
   const [showChangePass, setShowChangePass] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [waitlist, setWaitlist] = useState<{id: number; name: string; phone: string; created_at: string}[]>([]);
+
+  const fetchWaitlist = async () => {
+    const { data } = await supabase.from("waitlist").select("*").order("created_at", { ascending: false });
+    if (data) setWaitlist(data as {id: number; name: string; phone: string; created_at: string}[]);
+  };
+
+  const clearWaitlistEntry = async (id: number) => {
+    await supabase.from("waitlist").delete().eq("id", id);
+    setWaitlist(prev => prev.filter(w => w.id !== id));
+  };
   const [activeTab, setActiveTab] = useState<"orders" | "prices">("orders");
   const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
   const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
@@ -489,14 +500,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             {/* Settings gear */}
             <div className="relative">
-              <button onClick={() => setShowSettings(s => !s)}
+              <button onClick={() => { setShowSettings(s => !s); fetchWaitlist(); }}
                 className={`p-2 rounded-xl border transition-colors ${showSettings ? "bg-pink-50 border-pink-300 text-pink-500" : "border-pink-100 hover:border-pink-300 text-amber-600 hover:text-pink-500"}`}>
                 <Settings className="h-4 w-4" />
               </button>
               {showSettings && (
-                <div className="absolute right-0 top-10 z-50 bg-white border border-pink-100 rounded-2xl shadow-xl p-4 w-64">
+                <div className="absolute right-0 top-10 z-50 bg-white border border-pink-100 rounded-2xl shadow-xl p-4 w-72 max-h-[80vh] overflow-y-auto">
                   <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3">Site Settings</p>
-                  <div className="flex items-center justify-between gap-3">
+                  {/* Orders toggle */}
+                  <div className="flex items-center justify-between gap-3 mb-1">
                     <div>
                       <p className="text-sm font-semibold text-amber-900">Orders</p>
                       <p className="text-xs text-amber-400">{ordersPaused ? "Currently paused" : "Accepting orders"}</p>
@@ -506,7 +518,35 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${ordersPaused ? "translate-x-1" : "translate-x-6"}`} />
                     </button>
                   </div>
-                  <p className="text-xs text-amber-300 mt-2">{ordersPaused ? "🔴 Site shows fully booked" : "🟢 Site accepting orders"}</p>
+                  <p className="text-xs text-amber-300 mb-4">{ordersPaused ? "🔴 Site shows fully booked" : "🟢 Site accepting orders"}</p>
+
+                  {/* Waitlist */}
+                  <div className="border-t border-pink-100 pt-3">
+                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">
+                      Waitlist {waitlist.length > 0 && <span className="ml-1 bg-pink-400 text-white px-1.5 py-0.5 rounded-full text-xs">{waitlist.length}</span>}
+                    </p>
+                    {waitlist.length === 0 ? (
+                      <p className="text-xs text-amber-300 italic">No one on the waitlist yet 🌸</p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {waitlist.map(w => (
+                          <div key={w.id} className="flex items-center justify-between bg-amber-50 rounded-xl px-3 py-2">
+                            <div>
+                              <p className="text-xs font-semibold text-amber-900">{w.name}</p>
+                              <a href={`https://wa.me/91${w.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+                                className="text-xs text-emerald-600 hover:underline font-medium">
+                                📱 {w.phone}
+                              </a>
+                            </div>
+                            <button onClick={() => clearWaitlistEntry(w.id)}
+                              className="p-1 text-amber-300 hover:text-red-400 transition-colors">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
