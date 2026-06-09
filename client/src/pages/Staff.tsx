@@ -757,24 +757,18 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <p className="text-xs text-amber-400 mt-0.5">Sorted by most ordered 🏆</p>
               </div>
               <div className="divide-y divide-pink-50">
-                {productStats.map((p, i) => {
-                  const img = getProductImage(p.name);
-                  const maxCount = productStats[0]?.count || 1;
+                {productStats.filter(p => p.name !== "General Enquiry").map((p, i) => {
+                  const maxCount = productStats.filter(p => p.name !== "General Enquiry")[0]?.count || 1;
                   return (
                     <div key={p.name} className="flex items-center gap-4 px-6 py-3">
                       <span className={`text-sm font-bold w-5 text-center ${i === 0 ? "text-amber-500" : i === 1 ? "text-amber-400" : i === 2 ? "text-amber-300" : "text-amber-200"}`}>
                         {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
                       </span>
-                      {img ? (
-                        <img src={img} alt={p.name} className="h-9 w-9 rounded-xl object-cover border border-pink-100 flex-shrink-0" />
-                      ) : (
-                        <div className="h-9 w-9 rounded-xl bg-pink-50 flex items-center justify-center flex-shrink-0 text-base">🧶</div>
-                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
                           <div className="flex items-center gap-3 ml-2 flex-shrink-0">
-                            <span className="text-xs font-bold text-pink-500">{p.count} orders</span>
+                            <span className="text-xs font-bold text-pink-500">{p.count} {p.count === 1 ? "order" : "orders"}</span>
                             {p.revenue > 0 && <span className="text-xs font-bold text-green-600">₹{p.revenue.toLocaleString()}</span>}
                           </div>
                         </div>
