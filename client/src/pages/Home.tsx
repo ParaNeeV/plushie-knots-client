@@ -1171,8 +1171,10 @@ export default function Home() {
               <p className="text-xs font-bold text-amber-900 uppercase tracking-widest mb-3">Connect</p>
               <div className="space-y-2">
                 <a href="https://www.instagram.com/plushie_knots_" target="_blank" rel="noopener noreferrer"
-                  className="block text-xs text-amber-400 hover:text-pink-500 transition-colors">Instagram</a>
-                <a href="https://wa.me/91" target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-pink-500 transition-colors">
+                  <Instagram className="h-3.5 w-3.5" /> @plushie_knots_
+                </a>
+                <a href="https://wa.me/917387042421" target="_blank" rel="noopener noreferrer"
                   className="block text-xs text-amber-400 hover:text-pink-500 transition-colors">WhatsApp</a>
               </div>
             </div>
