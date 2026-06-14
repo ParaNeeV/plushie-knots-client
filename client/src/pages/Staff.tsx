@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Plus, Search, Trash2, Pencil, X, Check,
-  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag, TrendingUp, Calendar, Settings,
+  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag, TrendingUp, Calendar, Settings, ShoppingBag, Eye, EyeOff, AlertCircle, Upload,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import StaffChat from "../components/StaffChat";
@@ -24,6 +24,24 @@ interface Order {
   deadline?: string;
   price?: number;
 }
+
+interface Product {
+  id: number;
+  name: string;
+  price: string;
+  category: string;
+  description: string;
+  image_url: string;
+  status: "active" | "hidden" | "out_of_stock";
+}
+
+const CATEGORIES = ["Crochet Bouquets", "Crochet Keychains", "Mirror Flowers", "Crochet Plushies"];
+
+const STATUS_CONFIG = {
+  active:       { label: "Active",        color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+  hidden:       { label: "Hidden",        color: "bg-amber-100 text-amber-700",     dot: "bg-amber-400"  },
+  out_of_stock: { label: "Out of Stock",  color: "bg-red-100 text-red-600",         dot: "bg-red-400"    },
+} as const;
 
 // ── Auth constants ─────────────────────────────────────────────────────
 const SESSION_KEY = "pk_staff_session";
@@ -365,11 +383,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("waitlist").delete().eq("id", id);
     setWaitlist(prev => prev.filter(w => w.id !== id));
   };
-  const [activeTab, setActiveTab] = useState<"orders" | "prices" | "waitlist" | "analytics">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "waitlist" | "analytics">("orders");
   const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
-  const [prices, setPrices] = useState<{id: number; name: string; price: string}[]>([]);
-  const [editingPrice, setEditingPrice] = useState<number | null>(null);
-  const [priceTemp, setPriceTemp] = useState("");
+
+  // ── Product management state ───────────────────────────────────────
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productModal, setProductModal] = useState<{ open: boolean; editing?: Product }>({ open: false });
+  const [productForm, setProductForm] = useState({ name: "", price: "", category: CATEGORIES[0], description: "", image_url: "", status: "active" as Product["status"] });
+  const [productSaving, setProductSaving] = useState(false);
+  const [productImgUploading, setProductImgUploading] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
+
   const [ordersPaused, setOrdersPaused] = useState(false);
 
   useEffect(() => {
@@ -384,18 +408,62 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("settings").update({ value: String(newVal) }).eq("key", "orders_paused");
   };
 
-  const fetchPrices = useCallback(async () => {
-    const { data } = await supabase.from("products").select("*").order("id");
-    if (data) setPrices(data as {id: number; name: string; price: string}[]);
+  const fetchProducts = useCallback(async () => {
+    const { data } = await supabase.from("products").select("*").order("category").order("id");
+    if (data) setProducts(data as Product[]);
   }, []);
 
-  useEffect(() => { fetchPrices(); }, [fetchPrices]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const savePrice = async (id: number) => {
-    setPrices(prev => prev.map(p => p.id === id ? { ...p, price: priceTemp } : p));
-    await supabase.from("products").update({ price: priceTemp }).eq("id", id);
-    setEditingPrice(null);
+  const openAddProduct = () => {
+    setProductForm({ name: "", price: "", category: CATEGORIES[0], description: "", image_url: "", status: "active" });
+    setProductModal({ open: true });
   };
+
+  const openEditProduct = (p: Product) => {
+    setProductForm({ name: p.name, price: p.price, category: p.category, description: p.description, image_url: p.image_url, status: p.status });
+    setProductModal({ open: true, editing: p });
+  };
+
+  const saveProduct = async () => {
+    if (!productForm.name.trim() || !productForm.price.trim() || !productForm.category) return;
+    setProductSaving(true);
+    if (productModal.editing) {
+      await supabase.from("products").update({ ...productForm }).eq("id", productModal.editing.id);
+    } else {
+      await supabase.from("products").insert({ ...productForm });
+    }
+    await fetchProducts();
+    setProductSaving(false);
+    setProductModal({ open: false });
+  };
+
+  const deleteProduct = async (id: number) => {
+    await supabase.from("products").delete().eq("id", id);
+    setProducts(prev => prev.filter(p => p.id !== id));
+    setDeletingProductId(null);
+  };
+
+  const cycleStatus = async (p: Product) => {
+    const next: Record<Product["status"], Product["status"]> = { active: "hidden", hidden: "out_of_stock", out_of_stock: "active" };
+    const newStatus = next[p.status];
+    setProducts(prev => prev.map(x => x.id === p.id ? { ...x, status: newStatus } : x));
+    await supabase.from("products").update({ status: newStatus }).eq("id", p.id);
+  };
+
+  const uploadProductImage = async (file: File) => {
+    setProductImgUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `products/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
+      setProductForm(f => ({ ...f, image_url: urlData.publicUrl }));
+    }
+    setProductImgUploading(false);
+  };
+
+
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
 
   const user = localStorage.getItem(SESSION_KEY) || "Staff";
@@ -635,9 +703,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "orders" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
             <Package className="h-4 w-4" /> Orders
           </button>
-          <button onClick={() => setActiveTab("prices")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "prices" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
-            <Tag className="h-4 w-4" /> Manage Prices
+          <button onClick={() => { setActiveTab("products"); fetchProducts(); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "products" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
+            <ShoppingBag className="h-4 w-4" /> Manage Products
           </button>
           <button onClick={() => { setActiveTab("waitlist"); fetchWaitlist(); }}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "waitlist" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
@@ -650,48 +718,243 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </button>
         </div>
 
-        {/* Prices Tab */}
-        {activeTab === "prices" && (
-          <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden mb-6">
-            <div className="px-6 py-4 border-b border-pink-100">
-              <h2 className="font-bold text-amber-900">Product Prices</h2>
-              <p className="text-xs text-amber-400 mt-0.5">Changes update the website instantly for customers 🌸</p>
+        {/* Manage Products Tab */}
+        {activeTab === "products" && (
+          <div className="mb-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-bold text-amber-900">Manage Products</h2>
+                <p className="text-xs text-amber-400 mt-0.5">Changes show on the website instantly 🌸</p>
+              </div>
+              <button onClick={openAddProduct}
+                className="flex items-center gap-2 bg-pink-400 hover:bg-pink-500 text-white text-sm font-semibold px-4 py-2.5 rounded-2xl shadow-sm transition-colors">
+                <Plus className="h-4 w-4" /> Add Product
+              </button>
             </div>
-            <div className="divide-y divide-pink-50">
-              {prices.map((p) => (
-                <div key={p.id} className="flex items-center justify-between px-6 py-3">
-                  <div className="flex items-center gap-3">
-                    {getProductImage(p.name) ? (
-                      <img src={getProductImage(p.name)!} alt={p.name} className="h-10 w-10 rounded-xl object-cover border border-pink-100 flex-shrink-0" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg">🧶</span>
-                      </div>
-                    )}
-                    <span className="text-sm text-amber-800 font-medium">{p.name}</span>
-                  </div>
-                  {editingPrice === p.id ? (
-                    <div className="flex items-center gap-2">
-                      <input autoFocus type="text" value={priceTemp} onChange={(e) => setPriceTemp(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") savePrice(p.id); if (e.key === "Escape") setEditingPrice(null); }}
-                        className="w-32 text-sm px-3 py-1.5 border-2 border-pink-200 rounded-xl focus:outline-none focus:border-pink-400 text-amber-900" />
-                      <button onClick={() => savePrice(p.id)} className="p-1.5 text-emerald-500 hover:text-emerald-700"><Check className="h-4 w-4" /></button>
-                      <button onClick={() => setEditingPrice(null)} className="p-1.5 text-amber-400 hover:text-amber-600"><X className="h-4 w-4" /></button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-pink-500">{p.price}</span>
-                      <button onClick={() => { setEditingPrice(p.id); setPriceTemp(p.price); }}
-                        className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
+
+            {/* Status legend */}
+            <div className="flex gap-3 mb-5">
+              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                <div key={key} className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
+                  <span className="text-xs text-amber-600">{cfg.label}</span>
                 </div>
               ))}
+              <span className="text-xs text-amber-300 ml-1">· tap status badge to cycle</span>
             </div>
+
+            {/* Products grouped by category */}
+            {products.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-12 text-center">
+                <span className="text-4xl">🧶</span>
+                <p className="text-amber-400 text-sm mt-3">No products yet — add your first one!</p>
+              </div>
+            ) : (
+              CATEGORIES.map(cat => {
+                const catProducts = products.filter(p => p.category === cat);
+                if (catProducts.length === 0) return null;
+                return (
+                  <div key={cat} className="mb-5">
+                    <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-2 px-1">{cat}</h3>
+                    <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+                      <div className="divide-y divide-pink-50">
+                        {catProducts.map(p => (
+                          <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                            {/* Image */}
+                            {p.image_url ? (
+                              <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-2xl object-cover border border-pink-100 flex-shrink-0" />
+                            ) : (
+                              <div className="h-12 w-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xl">🧶</span>
+                              </div>
+                            )}
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                              {p.description && <p className="text-xs text-amber-400 truncate mt-0.5">{p.description}</p>}
+                            </div>
+                            {/* Price */}
+                            <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
+                            {/* Status badge — tap to cycle */}
+                            <button onClick={() => cycleStatus(p)}
+                              className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${STATUS_CONFIG[p.status].color}`}>
+                              {STATUS_CONFIG[p.status].label}
+                            </button>
+                            {/* Actions */}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => openEditProduct(p)}
+                                className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={() => setDeletingProductId(p.id)}
+                                className="p-1.5 rounded-xl hover:bg-red-50 text-amber-200 hover:text-red-400 transition-colors">
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {/* Products in uncategorised / new categories */}
+            {(() => {
+              const extra = products.filter(p => !CATEGORIES.includes(p.category));
+              if (extra.length === 0) return null;
+              return (
+                <div className="mb-5">
+                  <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-2 px-1">Other</h3>
+                  <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+                    <div className="divide-y divide-pink-50">
+                      {extra.map(p => (
+                        <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                          {p.image_url ? (
+                            <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-2xl object-cover border border-pink-100 flex-shrink-0" />
+                          ) : (
+                            <div className="h-12 w-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
+                              <span className="text-xl">🧶</span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                            <p className="text-xs text-amber-400 truncate">{p.category}</p>
+                          </div>
+                          <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
+                          <button onClick={() => cycleStatus(p)}
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_CONFIG[p.status].color}`}>
+                            {STATUS_CONFIG[p.status].label}
+                          </button>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button onClick={() => openEditProduct(p)} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                            <button onClick={() => setDeletingProductId(p.id)} className="p-1.5 rounded-xl hover:bg-red-50 text-amber-200 hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
+
+        {/* Add / Edit Product Modal */}
+        <AnimatePresence>
+          {productModal.open && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+              <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-pink-100">
+                  <h3 className="font-bold text-amber-900">{productModal.editing ? "Edit Product" : "Add Product"}</h3>
+                  <button onClick={() => setProductModal({ open: false })} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-amber-600"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                  {/* Image upload */}
+                  <div>
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Product Image</label>
+                    <div className="flex items-center gap-3">
+                      {productForm.image_url ? (
+                        <img src={productForm.image_url} alt="preview" className="h-16 w-16 rounded-2xl object-cover border border-pink-100" />
+                      ) : (
+                        <div className="h-16 w-16 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center">
+                          <ImageIcon className="h-6 w-6 text-pink-200" />
+                        </div>
+                      )}
+                      <div className="flex-1 space-y-1.5">
+                        <label className="flex items-center gap-2 cursor-pointer bg-pink-50 hover:bg-pink-100 border border-pink-100 rounded-xl px-3 py-2 text-xs font-semibold text-pink-500 transition-colors w-fit">
+                          <Upload className="h-3.5 w-3.5" />
+                          {productImgUploading ? "Uploading…" : "Upload Image"}
+                          <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadProductImage(e.target.files[0]); }} />
+                        </label>
+                        <input type="text" value={productForm.image_url} onChange={e => setProductForm(f => ({ ...f, image_url: e.target.value }))}
+                          placeholder="or paste image URL"
+                          className="w-full text-xs px-3 py-1.5 border border-pink-100 rounded-xl focus:outline-none focus:border-pink-300 text-amber-700 placeholder-amber-200" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Product Name *</label>
+                    <input type="text" value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))}
+                      placeholder="e.g. Capybara Plushie"
+                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200" />
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Category *</label>
+                    <select value={productForm.category} onChange={e => setProductForm(f => ({ ...f, category: e.target.value }))}
+                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 bg-white">
+                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Price */}
+                  <div>
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Price *</label>
+                    <input type="text" value={productForm.price} onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))}
+                      placeholder="e.g. ₹499"
+                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200" />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Description</label>
+                    <textarea value={productForm.description} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))}
+                      placeholder="Short description shown to customers…"
+                      rows={3}
+                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200 resize-none" />
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Status</label>
+                    <div className="flex gap-2">
+                      {(Object.keys(STATUS_CONFIG) as Product["status"][]).map(s => (
+                        <button key={s} onClick={() => setProductForm(f => ({ ...f, status: s }))}
+                          className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all border ${productForm.status === s ? STATUS_CONFIG[s].color + " border-transparent" : "border-pink-100 text-amber-400 bg-white"}`}>
+                          {STATUS_CONFIG[s].label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button onClick={saveProduct} disabled={productSaving || !productForm.name.trim() || !productForm.price.trim()}
+                    className="w-full bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white font-bold py-3 rounded-2xl transition-colors mt-2">
+                    {productSaving ? "Saving…" : productModal.editing ? "Save Changes" : "Add Product"}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Product Confirm */}
+        <AnimatePresence>
+          {deletingProductId !== null && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-xs text-center">
+                <span className="text-3xl">🗑️</span>
+                <h3 className="font-bold text-amber-900 mt-3 mb-1">Delete product?</h3>
+                <p className="text-xs text-amber-400 mb-5">This can't be undone. You can hide it instead.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setDeletingProductId(null)}
+                    className="flex-1 py-2.5 rounded-2xl border border-pink-100 text-amber-600 text-sm font-semibold hover:bg-pink-50 transition-colors">Cancel</button>
+                  <button onClick={() => deleteProduct(deletingProductId)}
+                    className="flex-1 py-2.5 rounded-2xl bg-red-400 hover:bg-red-500 text-white text-sm font-semibold transition-colors">Delete</button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Waitlist Tab */}
         {activeTab === "waitlist" && (
