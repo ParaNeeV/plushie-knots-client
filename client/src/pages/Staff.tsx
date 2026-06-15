@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Plus, Search, Trash2, Pencil, X, Check,
-  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag, TrendingUp, Calendar, Settings, ShoppingBag, Eye, EyeOff, AlertCircle, Upload,
+  Package, Clock, CheckCircle2, LayoutDashboard, StickyNote, KeyRound, RefreshCw, ImageIcon, Paperclip, Tag, TrendingUp, Calendar, Settings, ShoppingBag, Upload,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import StaffChat from "../components/StaffChat";
@@ -38,10 +38,12 @@ interface Product {
 const CATEGORIES = ["Crochet Bouquets", "Crochet Keychains", "Mirror Flowers", "Crochet Plushies"];
 
 const STATUS_CONFIG = {
-  active:       { label: "Active",        color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  hidden:       { label: "Hidden",        color: "bg-amber-100 text-amber-700",     dot: "bg-amber-400"  },
-  out_of_stock: { label: "Out of Stock",  color: "bg-red-100 text-red-600",         dot: "bg-red-400"    },
+  active:       { label: "Active",       color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+  hidden:       { label: "Hidden",       color: "bg-amber-100 text-amber-700",     dot: "bg-amber-400"  },
+  out_of_stock: { label: "Out of Stock", color: "bg-red-100 text-red-600",         dot: "bg-red-400"    },
 } as const;
+
+const emptyProductForm = { name: "", price: "", category: CATEGORIES[0], description: "", image_url: "", status: "active" as Product["status"] };
 
 // ── Auth constants ─────────────────────────────────────────────────────
 const SESSION_KEY = "pk_staff_session";
@@ -373,6 +375,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [showChangePass, setShowChangePass] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [waitlist, setWaitlist] = useState<{id: number; name: string; phone: string; created_at: string}[]>([]);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+
+  // ── Product management state ──────────────────────────────────────
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productModal, setProductModal] = useState<{ open: boolean; editing?: Product }>({ open: false });
+  const [productForm, setProductForm] = useState(emptyProductForm);
+  const [productSaving, setProductSaving] = useState(false);
+  const [productImgUploading, setProductImgUploading] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
+
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "waitlist" | "analytics">("orders");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
+  const [ordersPaused, setOrdersPaused] = useState(false);
 
   const fetchWaitlist = async () => {
     const { data } = await supabase.from("waitlist").select("*").order("created_at", { ascending: false });
@@ -383,18 +398,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("waitlist").delete().eq("id", id);
     setWaitlist(prev => prev.filter(w => w.id !== id));
   };
-  const [activeTab, setActiveTab] = useState<"orders" | "products" | "waitlist" | "analytics">("orders");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "customer" | "staff">("all");
-
-  // ── Product management state ───────────────────────────────────────
-  const [products, setProducts] = useState<Product[]>([]);
-  const [productModal, setProductModal] = useState<{ open: boolean; editing?: Product }>({ open: false });
-  const [productForm, setProductForm] = useState({ name: "", price: "", category: CATEGORIES[0], description: "", image_url: "", status: "active" as Product["status"] });
-  const [productSaving, setProductSaving] = useState(false);
-  const [productImgUploading, setProductImgUploading] = useState(false);
-  const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
-
-  const [ordersPaused, setOrdersPaused] = useState(false);
 
   useEffect(() => {
     supabase.from("settings").select("value").eq("key", "orders_paused").single().then(({ data }) => {
@@ -408,6 +411,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("settings").update({ value: String(newVal) }).eq("key", "orders_paused");
   };
 
+  // ── Product CRUD ──────────────────────────────────────────────────
   const fetchProducts = useCallback(async () => {
     const { data } = await supabase.from("products").select("*").order("category").order("id");
     if (data) setProducts(data as Product[]);
@@ -416,7 +420,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const openAddProduct = () => {
-    setProductForm({ name: "", price: "", category: CATEGORIES[0], description: "", image_url: "", status: "active" });
+    setProductForm(emptyProductForm);
     setProductModal({ open: true });
   };
 
@@ -426,7 +430,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   const saveProduct = async () => {
-    if (!productForm.name.trim() || !productForm.price.trim() || !productForm.category) return;
+    if (!productForm.name.trim() || !productForm.price.trim()) return;
     setProductSaving(true);
     if (productModal.editing) {
       await supabase.from("products").update({ ...productForm }).eq("id", productModal.editing.id);
@@ -463,12 +467,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setProductImgUploading(false);
   };
 
-
-  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
-
-  const user = localStorage.getItem(SESSION_KEY) || "Staff";
-
-  // Fetch orders from Supabase
+  // ── Orders ────────────────────────────────────────────────────────
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from("orders").select("*").order("id", { ascending: false });
@@ -492,7 +491,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).reduce((sum, o) => sum + (o.price || 0), 0);
 
-  // Product breakdown
   const productStats = Object.values(
     orders.reduce((acc, o) => {
       const key = o.product || "Unknown";
@@ -503,7 +501,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     }, {} as Record<string, { name: string; count: number; revenue: number }>)
   ).sort((a, b) => b.count - a.count);
 
-  // Upcoming deadlines (next 3 days)
   const urgentOrders = orders.filter(o => {
     if (!o.deadline) return false;
     const diff = (new Date(o.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
@@ -527,13 +524,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const editOrder = async (data: typeof emptyForm) => {
     await supabase.from("orders").update({
-      name: data.name,
-      phone: data.phone,
-      product: data.product,
-      description: data.description,
-      notes: data.notes,
-      deadline: data.deadline || null,
-      price: data.price ? parseInt(String(data.price)) : 0,
+      name: data.name, phone: data.phone, product: data.product,
+      description: data.description, notes: data.notes,
+      deadline: data.deadline || null, price: data.price ? parseInt(String(data.price)) : 0,
     }).eq("id", modal.editing!.id);
     setModal({ open: false });
     fetchOrders();
@@ -585,6 +578,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("orders").update({ image_url: "" }).eq("id", id);
   };
 
+  const user = localStorage.getItem(SESSION_KEY) || "Staff";
+
   return (
     <div className="min-h-screen bg-amber-50">
       {/* Top bar */}
@@ -611,7 +606,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-pink-500 border border-pink-100 hover:border-pink-300 rounded-xl px-3 py-2 transition-colors">
               <KeyRound className="h-3.5 w-3.5" /> Change Password
             </button>
-            {/* Settings gear */}
             <div className="relative">
               <button onClick={() => { setShowSettings(s => !s); fetchWaitlist(); }}
                 className={`p-2 rounded-xl border transition-colors ${showSettings ? "bg-pink-50 border-pink-300 text-pink-500" : "border-pink-100 hover:border-pink-300 text-amber-600 hover:text-pink-500"}`}>
@@ -620,7 +614,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               {showSettings && (
                 <div className="absolute right-0 top-10 z-50 bg-white border border-pink-100 rounded-2xl shadow-xl p-4 w-56">
                   <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3">Site Settings</p>
-                  {/* Orders toggle */}
                   <div className="flex items-center justify-between gap-3 mb-1">
                     <div>
                       <p className="text-sm font-semibold text-amber-900">Orders</p>
@@ -688,9 +681,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <p className="text-sm font-bold text-red-600">⚠️ Urgent — due in 3 days!</p>
               <div className="mt-1 space-y-0.5">
                 {urgentOrders.map(o => (
-                  <p key={o.id} className="text-xs text-red-500">
-                    {o.name} — {o.product} — due {o.deadline}
-                  </p>
+                  <p key={o.id} className="text-xs text-red-500">{o.name} — {o.product} — due {o.deadline}</p>
                 ))}
               </div>
             </div>
@@ -698,7 +689,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-5">
+        <div className="flex flex-wrap gap-2 mb-5">
           <button onClick={() => setActiveTab("orders")}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold transition-colors ${activeTab === "orders" ? "bg-pink-400 text-white shadow-sm" : "bg-white text-amber-600 border border-pink-100 hover:border-pink-300"}`}>
             <Package className="h-4 w-4" /> Orders
@@ -718,10 +709,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </button>
         </div>
 
-        {/* Manage Products Tab */}
+        {/* ── MANAGE PRODUCTS TAB ── */}
         {activeTab === "products" && (
           <div className="mb-6">
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="font-bold text-amber-900">Manage Products</h2>
@@ -733,230 +723,109 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               </button>
             </div>
 
-            {/* Status legend */}
-            <div className="flex gap-3 mb-5">
+            <div className="flex gap-3 mb-5 flex-wrap">
               {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                 <div key={key} className="flex items-center gap-1.5">
                   <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
                   <span className="text-xs text-amber-600">{cfg.label}</span>
                 </div>
               ))}
-              <span className="text-xs text-amber-300 ml-1">· tap status badge to cycle</span>
+              <span className="text-xs text-amber-300">· tap status badge to cycle</span>
             </div>
 
-            {/* Products grouped by category */}
             {products.length === 0 ? (
               <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-12 text-center">
                 <span className="text-4xl">🧶</span>
                 <p className="text-amber-400 text-sm mt-3">No products yet — add your first one!</p>
               </div>
             ) : (
-              CATEGORIES.map(cat => {
-                const catProducts = products.filter(p => p.category === cat);
-                if (catProducts.length === 0) return null;
-                return (
-                  <div key={cat} className="mb-5">
-                    <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-2 px-1">{cat}</h3>
-                    <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
-                      <div className="divide-y divide-pink-50">
-                        {catProducts.map(p => (
-                          <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                            {/* Image */}
-                            {p.image_url ? (
-                              <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-2xl object-cover border border-pink-100 flex-shrink-0" />
-                            ) : (
-                              <div className="h-12 w-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
-                                <span className="text-xl">🧶</span>
+              <>
+                {CATEGORIES.map(cat => {
+                  const catProducts = products.filter(p => p.category === cat);
+                  if (catProducts.length === 0) return null;
+                  return (
+                    <div key={cat} className="mb-5">
+                      <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-2 px-1">{cat}</h3>
+                      <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+                        <div className="divide-y divide-pink-50">
+                          {catProducts.map(p => (
+                            <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                              {p.image_url ? (
+                                <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-2xl object-cover border border-pink-100 flex-shrink-0 cursor-pointer" onClick={() => setLightboxImg(p.image_url)} />
+                              ) : (
+                                <div className="h-12 w-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xl">🧶</span>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                                {p.description && <p className="text-xs text-amber-400 truncate mt-0.5">{p.description}</p>}
                               </div>
-                            )}
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
-                              {p.description && <p className="text-xs text-amber-400 truncate mt-0.5">{p.description}</p>}
-                            </div>
-                            {/* Price */}
-                            <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
-                            {/* Status badge — tap to cycle */}
-                            <button onClick={() => cycleStatus(p)}
-                              className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${STATUS_CONFIG[p.status].color}`}>
-                              {STATUS_CONFIG[p.status].label}
-                            </button>
-                            {/* Actions */}
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <button onClick={() => openEditProduct(p)}
-                                className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors">
-                                <Pencil className="h-3.5 w-3.5" />
+                              <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
+                              <button onClick={() => cycleStatus(p)}
+                                className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${STATUS_CONFIG[p.status].color}`}>
+                                {STATUS_CONFIG[p.status].label}
                               </button>
-                              <button onClick={() => setDeletingProductId(p.id)}
-                                className="p-1.5 rounded-xl hover:bg-red-50 text-amber-200 hover:text-red-400 transition-colors">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button onClick={() => openEditProduct(p)}
+                                  className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button onClick={() => setDeletingProductId(p.id)}
+                                  className="p-1.5 rounded-xl hover:bg-red-50 text-amber-200 hover:text-red-400 transition-colors">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-
-            {/* Products in uncategorised / new categories */}
-            {(() => {
-              const extra = products.filter(p => !CATEGORIES.includes(p.category));
-              if (extra.length === 0) return null;
-              return (
-                <div className="mb-5">
-                  <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-2 px-1">Other</h3>
-                  <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
-                    <div className="divide-y divide-pink-50">
-                      {extra.map(p => (
-                        <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                          {p.image_url ? (
-                            <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-2xl object-cover border border-pink-100 flex-shrink-0" />
-                          ) : (
-                            <div className="h-12 w-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xl">🧶</span>
+                  );
+                })}
+                {(() => {
+                  const extra = products.filter(p => !CATEGORIES.includes(p.category));
+                  if (extra.length === 0) return null;
+                  return (
+                    <div className="mb-5">
+                      <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-2 px-1">Other</h3>
+                      <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+                        <div className="divide-y divide-pink-50">
+                          {extra.map(p => (
+                            <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                              {p.image_url ? (
+                                <img src={p.image_url} alt={p.name} className="h-12 w-12 rounded-2xl object-cover border border-pink-100 flex-shrink-0" />
+                              ) : (
+                                <div className="h-12 w-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xl">🧶</span>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                                <p className="text-xs text-amber-400 truncate">{p.category}</p>
+                              </div>
+                              <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
+                              <button onClick={() => cycleStatus(p)}
+                                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_CONFIG[p.status].color}`}>
+                                {STATUS_CONFIG[p.status].label}
+                              </button>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button onClick={() => openEditProduct(p)} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => setDeletingProductId(p.id)} className="p-1.5 rounded-xl hover:bg-red-50 text-amber-200 hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                              </div>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
-                            <p className="text-xs text-amber-400 truncate">{p.category}</p>
-                          </div>
-                          <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
-                          <button onClick={() => cycleStatus(p)}
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_CONFIG[p.status].color}`}>
-                            {STATUS_CONFIG[p.status].label}
-                          </button>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <button onClick={() => openEditProduct(p)} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                            <button onClick={() => setDeletingProductId(p.id)} className="p-1.5 rounded-xl hover:bg-red-50 text-amber-200 hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
-                          </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })()}
+                  );
+                })()}
+              </>
+            )}
           </div>
         )}
 
-        {/* Add / Edit Product Modal */}
-        <AnimatePresence>
-          {productModal.open && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-              <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-                className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-pink-100">
-                  <h3 className="font-bold text-amber-900">{productModal.editing ? "Edit Product" : "Add Product"}</h3>
-                  <button onClick={() => setProductModal({ open: false })} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-amber-600"><X className="h-4 w-4" /></button>
-                </div>
-                <div className="p-6 space-y-4">
-                  {/* Image upload */}
-                  <div>
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Product Image</label>
-                    <div className="flex items-center gap-3">
-                      {productForm.image_url ? (
-                        <img src={productForm.image_url} alt="preview" className="h-16 w-16 rounded-2xl object-cover border border-pink-100" />
-                      ) : (
-                        <div className="h-16 w-16 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center">
-                          <ImageIcon className="h-6 w-6 text-pink-200" />
-                        </div>
-                      )}
-                      <div className="flex-1 space-y-1.5">
-                        <label className="flex items-center gap-2 cursor-pointer bg-pink-50 hover:bg-pink-100 border border-pink-100 rounded-xl px-3 py-2 text-xs font-semibold text-pink-500 transition-colors w-fit">
-                          <Upload className="h-3.5 w-3.5" />
-                          {productImgUploading ? "Uploading…" : "Upload Image"}
-                          <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadProductImage(e.target.files[0]); }} />
-                        </label>
-                        <input type="text" value={productForm.image_url} onChange={e => setProductForm(f => ({ ...f, image_url: e.target.value }))}
-                          placeholder="or paste image URL"
-                          className="w-full text-xs px-3 py-1.5 border border-pink-100 rounded-xl focus:outline-none focus:border-pink-300 text-amber-700 placeholder-amber-200" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Name */}
-                  <div>
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Product Name *</label>
-                    <input type="text" value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))}
-                      placeholder="e.g. Capybara Plushie"
-                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200" />
-                  </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Category *</label>
-                    <select value={productForm.category} onChange={e => setProductForm(f => ({ ...f, category: e.target.value }))}
-                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 bg-white">
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Price */}
-                  <div>
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Price *</label>
-                    <input type="text" value={productForm.price} onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))}
-                      placeholder="e.g. ₹499"
-                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200" />
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Description</label>
-                    <textarea value={productForm.description} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))}
-                      placeholder="Short description shown to customers…"
-                      rows={3}
-                      className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200 resize-none" />
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Status</label>
-                    <div className="flex gap-2">
-                      {(Object.keys(STATUS_CONFIG) as Product["status"][]).map(s => (
-                        <button key={s} onClick={() => setProductForm(f => ({ ...f, status: s }))}
-                          className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all border ${productForm.status === s ? STATUS_CONFIG[s].color + " border-transparent" : "border-pink-100 text-amber-400 bg-white"}`}>
-                          {STATUS_CONFIG[s].label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button onClick={saveProduct} disabled={productSaving || !productForm.name.trim() || !productForm.price.trim()}
-                    className="w-full bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white font-bold py-3 rounded-2xl transition-colors mt-2">
-                    {productSaving ? "Saving…" : productModal.editing ? "Save Changes" : "Add Product"}
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Delete Product Confirm */}
-        <AnimatePresence>
-          {deletingProductId !== null && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-xs text-center">
-                <span className="text-3xl">🗑️</span>
-                <h3 className="font-bold text-amber-900 mt-3 mb-1">Delete product?</h3>
-                <p className="text-xs text-amber-400 mb-5">This can't be undone. You can hide it instead.</p>
-                <div className="flex gap-3">
-                  <button onClick={() => setDeletingProductId(null)}
-                    className="flex-1 py-2.5 rounded-2xl border border-pink-100 text-amber-600 text-sm font-semibold hover:bg-pink-50 transition-colors">Cancel</button>
-                  <button onClick={() => deleteProduct(deletingProductId)}
-                    className="flex-1 py-2.5 rounded-2xl bg-red-400 hover:bg-red-500 text-white text-sm font-semibold transition-colors">Delete</button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Waitlist Tab */}
+        {/* ── WAITLIST TAB ── */}
         {activeTab === "waitlist" && (
           <div className="bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden mb-6">
             <div className="px-6 py-4 border-b border-pink-100">
@@ -990,10 +859,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {/* Analytics Tab */}
+        {/* ── ANALYTICS TAB ── */}
         {activeTab === "analytics" && (
           <div className="space-y-4 mb-6">
-            {/* Summary cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-white border border-pink-100 rounded-2xl p-4">
                 <p className="text-xs text-amber-400 mb-1">Total Orders</p>
@@ -1012,8 +880,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <p className="text-2xl font-bold text-purple-500">₹{monthRevenue.toLocaleString()}</p>
               </div>
             </div>
-
-            {/* Product breakdown */}
             <div className="bg-white border border-pink-100 rounded-3xl shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-pink-100">
                 <h2 className="font-bold text-amber-900">Product Breakdown</h2>
@@ -1047,7 +913,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {/* Source Filter Tabs */}
+        {/* ── ORDERS TAB ── */}
         {activeTab === "orders" && (
           <div className="flex gap-2 mb-4">
             {(["all", "customer", "staff"] as const).map((s) => (
@@ -1065,7 +931,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
 
-        {/* Toolbar */}
         {activeTab === "orders" && <div className="flex flex-wrap gap-3 items-center mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-300" />
@@ -1091,7 +956,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </motion.button>
         </div>}
 
-        {/* Table */}
         <div className={activeTab === "orders" ? "bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden" : "hidden"}>
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-3">
@@ -1153,36 +1017,36 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 </button>
                               )}
                             </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            {editingPriceId === order.id ? (
-                              <div className="flex items-center gap-1">
-                                <input autoFocus type="number" min="0" value={priceCellTemp}
-                                  onChange={(e) => setPriceCellTemp(e.target.value)}
-                                  onKeyDown={(e) => { if (e.key === "Enter") saveInlinePrice(order.id); if (e.key === "Escape") setEditingPriceId(null); }}
-                                  className="w-20 text-xs px-2 py-1.5 border-2 border-pink-200 rounded-xl focus:outline-none focus:border-pink-400 text-amber-900" />
-                                <button onClick={() => saveInlinePrice(order.id)} className="p-1 text-emerald-500 hover:text-emerald-700"><Check className="h-3.5 w-3.5" /></button>
-                                <button onClick={() => setEditingPriceId(null)} className="p-1 text-amber-400 hover:text-amber-600"><X className="h-3.5 w-3.5" /></button>
-                              </div>
-                            ) : (
-                              <button onClick={() => { setEditingPriceId(order.id); setPriceCellTemp(order.price ? String(order.price) : ""); }}
-                                className="group flex items-center gap-1 hover:opacity-80 transition-opacity">
-                                {order.price ? (
-                                  <span className="text-sm font-bold text-green-600">₹{order.price}</span>
-                                ) : (
-                                  <span className="text-xs text-amber-300 italic">Add ₹</span>
-                                )}
-                                <Pencil className="h-2.5 w-2.5 text-amber-200 group-hover:text-pink-400 transition-colors" />
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <select value={order.status} onChange={(e) => changeStatus(order.id, e.target.value as Status)}
-                              className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${sm.color}`}>
-                              <option value="new">New</option>
-                              <option value="in-progress">In Progress</option>
-                              <option value="done">Done</option>
-                            </select>
-                          </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {editingPriceId === order.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input autoFocus type="number" min="0" value={priceCellTemp}
+                                    onChange={(e) => setPriceCellTemp(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") saveInlinePrice(order.id); if (e.key === "Escape") setEditingPriceId(null); }}
+                                    className="w-20 text-xs px-2 py-1.5 border-2 border-pink-200 rounded-xl focus:outline-none focus:border-pink-400 text-amber-900" />
+                                  <button onClick={() => saveInlinePrice(order.id)} className="p-1 text-emerald-500 hover:text-emerald-700"><Check className="h-3.5 w-3.5" /></button>
+                                  <button onClick={() => setEditingPriceId(null)} className="p-1 text-amber-400 hover:text-amber-600"><X className="h-3.5 w-3.5" /></button>
+                                </div>
+                              ) : (
+                                <button onClick={() => { setEditingPriceId(order.id); setPriceCellTemp(order.price ? String(order.price) : ""); }}
+                                  className="group flex items-center gap-1 hover:opacity-80 transition-opacity">
+                                  {order.price ? (
+                                    <span className="text-sm font-bold text-green-600">₹{order.price}</span>
+                                  ) : (
+                                    <span className="text-xs text-amber-300 italic">Add ₹</span>
+                                  )}
+                                  <Pencil className="h-2.5 w-2.5 text-amber-200 group-hover:text-pink-400 transition-colors" />
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <select value={order.status} onChange={(e) => changeStatus(order.id, e.target.value as Status)}
+                                className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${sm.color}`}>
+                                <option value="new">New</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="done">Done</option>
+                              </select>
+                            </td>
                             <td className="px-4 py-3 min-w-[140px]">
                               {editingNoteId === order.id ? (
                                 <div className="flex items-center gap-1">
@@ -1216,92 +1080,4 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                     </div>
                                   ) : (
                                     <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
-                                      <Paperclip className="h-3 w-3" />
-                                      <span>Add image</span>
-                                      <input type="file" accept="image/*" className="hidden"
-                                        onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
-                                    </label>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => setModal({ open: true, editing: order })}
-                                  className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                                {deletingId === order.id ? (
-                                  <div className="flex items-center gap-1">
-                                    <button onClick={() => deleteOrder(order.id)} className="p-1.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"><Check className="h-3.5 w-3.5" /></button>
-                                    <button onClick={() => setDeletingId(null)} className="p-1.5 rounded-xl bg-amber-50 text-amber-400 hover:bg-amber-100 transition-colors"><X className="h-3.5 w-3.5" /></button>
-                                  </div>
-                                ) : (
-                                  <button onClick={() => setDeletingId(order.id)}
-                                    className="p-1.5 rounded-xl hover:bg-red-50 text-amber-300 hover:text-red-500 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
-                                )}
-                              </div>
-                            </td>
-                          </motion.tr>
-                        );
-                      })
-                    )}
-                  </AnimatePresence>
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="px-4 py-3 border-t border-pink-50 text-xs text-amber-400">
-            Showing {filtered.length} of {orders.length} order{orders.length !== 1 ? "s" : ""}
-          </div>
-        </div>
-      </div>
-
-      <StaffChat currentUser={user} />
-
-      <AnimatePresence>
-        {modal.open && (
-          <OrderFormModal
-            initial={modal.editing ? { name: modal.editing.name, phone: modal.editing.phone, product: modal.editing.product, description: modal.editing.description, notes: modal.editing.notes, deadline: modal.editing.deadline || "", price: modal.editing.price ? String(modal.editing.price) : "", id: modal.editing.id } : undefined}
-            onSave={modal.editing ? editOrder : addOrder}
-            onClose={() => setModal({ open: false })}
-          />
-        )}
-        {showChangePass && <ChangePasswordModal user={user} onClose={() => setShowChangePass(false)} />}
-        {lightboxImg && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setLightboxImg(null)}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4"
-          >
-            <motion.div
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.85, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative max-w-2xl w-full"
-            >
-              <img src={lightboxImg} alt="Order reference" className="w-full rounded-3xl shadow-2xl" />
-              <button
-                onClick={() => setLightboxImg(null)}
-                className="absolute -top-3 -right-3 w-8 h-8 bg-white text-gray-700 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// ROOT
-// ══════════════════════════════════════════════════════════════════════
-export default function Staff() {
-  const [loggedIn, setLoggedIn] = useState(() => !!localStorage.getItem(SESSION_KEY));
-  const handleLogout = () => { localStorage.removeItem(SESSION_KEY); setLoggedIn(false); };
-  return loggedIn ? <Dashboard onLogout={handleLogout} /> : <LoginScreen onLogin={() => setLoggedIn(true)} />;
-}
+     
