@@ -1080,4 +1080,199 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                     </div>
                                   ) : (
                                     <label className="flex items-center gap-1 text-xs text-amber-300 hover:text-pink-400 cursor-pointer transition-colors">
-     
+                                      <Paperclip className="h-3 w-3" />
+                                      <span>Add image</span>
+                                      <input type="file" accept="image/*" className="hidden"
+                                        onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadImage(order.id, file); e.target.value = ""; }} />
+                                    </label>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => setModal({ open: true, editing: order })}
+                                  className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-pink-500 transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                                {deletingId === order.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <button onClick={() => deleteOrder(order.id)} className="p-1.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"><Check className="h-3.5 w-3.5" /></button>
+                                    <button onClick={() => setDeletingId(null)} className="p-1.5 rounded-xl bg-amber-50 text-amber-400 hover:bg-amber-100 transition-colors"><X className="h-3.5 w-3.5" /></button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => setDeletingId(order.id)}
+                                    className="p-1.5 rounded-xl hover:bg-red-50 text-amber-300 hover:text-red-500 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                                )}
+                              </div>
+                            </td>
+                          </motion.tr>
+                        );
+                      })
+                    )}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="px-4 py-3 border-t border-pink-50 text-xs text-amber-400">
+            Showing {filtered.length} of {orders.length} order{orders.length !== 1 ? "s" : ""}
+          </div>
+        </div>
+      </div>
+
+      <StaffChat currentUser={user} />
+
+      {/* ── MODALS ── */}
+      <AnimatePresence>
+        {/* Add/Edit Product Modal */}
+        {productModal.open && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+            onClick={(e) => e.target === e.currentTarget && setProductModal({ open: false })}>
+            <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-pink-100">
+                <h3 className="font-bold text-amber-900">{productModal.editing ? "Edit Product" : "Add Product"}</h3>
+                <button onClick={() => setProductModal({ open: false })} className="p-1.5 rounded-xl hover:bg-pink-50 text-amber-300 hover:text-amber-600"><X className="h-4 w-4" /></button>
+              </div>
+              <div className="p-6 space-y-4">
+                {/* Image upload */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Product Image</label>
+                  <div className="flex items-center gap-3">
+                    {productForm.image_url ? (
+                      <div className="relative flex-shrink-0">
+                        <img src={productForm.image_url} alt="preview" className="h-16 w-16 rounded-2xl object-cover border border-pink-100" />
+                        <button onClick={() => setProductForm(f => ({ ...f, image_url: "" }))}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="h-16 w-16 rounded-2xl bg-pink-50 border-2 border-dashed border-pink-200 flex items-center justify-center flex-shrink-0">
+                        <ImageIcon className="h-6 w-6 text-pink-200" />
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-1.5">
+                      <label className="flex items-center gap-2 cursor-pointer bg-pink-50 hover:bg-pink-100 border border-pink-100 rounded-xl px-3 py-2 text-xs font-semibold text-pink-500 transition-colors w-fit">
+                        <Upload className="h-3.5 w-3.5" />
+                        {productImgUploading ? "Uploading…" : "Upload Image"}
+                        <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadProductImage(e.target.files[0]); }} />
+                      </label>
+                      <input type="text" value={productForm.image_url} onChange={e => setProductForm(f => ({ ...f, image_url: e.target.value }))}
+                        placeholder="or paste image URL"
+                        className="w-full text-xs px-3 py-1.5 border border-pink-100 rounded-xl focus:outline-none focus:border-pink-300 text-amber-700 placeholder-amber-200" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Product Name *</label>
+                  <input type="text" value={productForm.name} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. Capybara Plushie"
+                    className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200" />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Category *</label>
+                  <select value={productForm.category} onChange={e => setProductForm(f => ({ ...f, category: e.target.value }))}
+                    className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 bg-white">
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Price *</label>
+                  <input type="text" value={productForm.price} onChange={e => setProductForm(f => ({ ...f, price: e.target.value }))}
+                    placeholder="e.g. ₹499"
+                    className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200" />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Description</label>
+                  <textarea value={productForm.description} onChange={e => setProductForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Short description shown to customers…"
+                    rows={3}
+                    className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200 resize-none" />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Status</label>
+                  <div className="flex gap-2">
+                    {(Object.keys(STATUS_CONFIG) as Product["status"][]).map(s => (
+                      <button key={s} onClick={() => setProductForm(f => ({ ...f, status: s }))}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all border ${productForm.status === s ? STATUS_CONFIG[s].color + " border-transparent" : "border-pink-100 text-amber-400 bg-white"}`}>
+                        {STATUS_CONFIG[s].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={saveProduct} disabled={productSaving || !productForm.name.trim() || !productForm.price.trim()}
+                  className="w-full bg-pink-400 hover:bg-pink-500 disabled:opacity-50 text-white font-bold py-3 rounded-2xl transition-colors mt-2">
+                  {productSaving ? "Saving…" : productModal.editing ? "Save Changes" : "Add Product"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Delete Product Confirm */}
+        {deletingProductId !== null && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-xl p-6 w-full max-w-xs text-center">
+              <span className="text-3xl">🗑️</span>
+              <h3 className="font-bold text-amber-900 mt-3 mb-1">Delete product?</h3>
+              <p className="text-xs text-amber-400 mb-5">This can't be undone. You can hide it instead.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeletingProductId(null)}
+                  className="flex-1 py-2.5 rounded-2xl border border-pink-100 text-amber-600 text-sm font-semibold hover:bg-pink-50 transition-colors">Cancel</button>
+                <button onClick={() => deleteProduct(deletingProductId)}
+                  className="flex-1 py-2.5 rounded-2xl bg-red-400 hover:bg-red-500 text-white text-sm font-semibold transition-colors">Delete</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {modal.open && (
+          <OrderFormModal
+            initial={modal.editing ? { name: modal.editing.name, phone: modal.editing.phone, product: modal.editing.product, description: modal.editing.description, notes: modal.editing.notes, deadline: modal.editing.deadline || "", price: modal.editing.price ? String(modal.editing.price) : "", id: modal.editing.id } : undefined}
+            onSave={modal.editing ? editOrder : addOrder}
+            onClose={() => setModal({ open: false })}
+          />
+        )}
+        {showChangePass && <ChangePasswordModal user={user} onClose={() => setShowChangePass(false)} />}
+        {lightboxImg && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setLightboxImg(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+            <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              onClick={(e) => e.stopPropagation()} className="relative max-w-2xl w-full">
+              <img src={lightboxImg} alt="Reference" className="w-full rounded-3xl shadow-2xl" />
+              <button onClick={() => setLightboxImg(null)}
+                className="absolute -top-3 -right-3 w-8 h-8 bg-white text-gray-700 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ROOT
+// ══════════════════════════════════════════════════════════════════════
+export default function Staff() {
+  const [loggedIn, setLoggedIn] = useState(() => !!localStorage.getItem(SESSION_KEY));
+  const handleLogout = () => { localStorage.removeItem(SESSION_KEY); setLoggedIn(false); };
+  return loggedIn ? <Dashboard onLogout={handleLogout} /> : <LoginScreen onLogin={() => setLoggedIn(true)} />;
+}
