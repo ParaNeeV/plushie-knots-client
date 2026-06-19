@@ -40,12 +40,17 @@ export default function Track() {
     setError("");
     setSearched(false);
 
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from("orders")
       .select("id, name, phone, product, description, date, status, notes")
       .or(`name.ilike.%${query.trim()}%,phone.ilike.%${query.trim()}%`);
 
-    setOrders(data as Order[] || []);
+    if (fetchError) {
+      setError("Something went wrong while searching. Please try again or message us on WhatsApp.");
+      setOrders([]);
+    } else {
+      setOrders((data as Order[]) || []);
+    }
     setSearched(true);
     setLoading(false);
   };
@@ -111,7 +116,14 @@ export default function Track() {
       {/* Results */}
       <div className="max-w-lg mx-auto px-4 pb-16 -mt-4">
         <AnimatePresence>
-          {searched && orders.length === 0 && (
+          {error && (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="bg-amber-50 border border-amber-200 rounded-3xl shadow-sm p-6 text-center mb-4">
+              <p className="text-sm text-amber-700 font-medium">⚠️ {error}</p>
+            </motion.div>
+          )}
+
+          {searched && !error && orders.length === 0 && (
             <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="bg-white rounded-3xl border border-pink-100 shadow-sm p-8 text-center">
               <div className="text-4xl mb-3">🔍</div>
@@ -119,7 +131,7 @@ export default function Track() {
               <p className="text-sm text-amber-400">Try your full name or the phone number you used when ordering</p>
               <div className="mt-4 pt-4 border-t border-pink-50">
                 <p className="text-xs text-amber-400 mb-2">Need help? Message us directly</p>
-                <a href="https://wa.me/918446140900" target="_blank" rel="noopener noreferrer"
+                <a href="https://wa.me/917387042421" target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-sm text-green-600 font-medium hover:text-green-700">
                   <Phone className="h-4 w-4" /> WhatsApp Jiya & Kiyoshi
                 </a>
@@ -201,7 +213,7 @@ export default function Track() {
 
                 {/* WhatsApp */}
                 <div className="px-5 pb-4">
-                  <a href="https://wa.me/918446140900" target="_blank" rel="noopener noreferrer"
+                  <a href="https://wa.me/917387042421" target="_blank" rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-50 hover:bg-green-100 text-green-600 text-sm font-medium rounded-2xl transition-colors border border-green-100">
                     <Phone className="h-4 w-4" />
                     Questions? Message Jiya & Kiyoshi
