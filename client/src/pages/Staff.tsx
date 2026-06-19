@@ -455,18 +455,46 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     await supabase.from("products").update({ status: newStatus }).eq("id", p.id);
   };
 
-  const uploadProductImage = async (file: File) => {
+  // Resizes + compresses an image file/blob in the browser and returns it as a
+  // JPEG data URL. Storing the image directly on the product row sidesteps
+  // Supabase Storage entirely (no bucket, no RLS policy needed) while keeping
+  // each photo small enough that it doesn't bloat the products table or slow
+  // down Home.tsx's catalog fetch.
+  const compressImageToDataUrl = (file: File | Blob, maxDim = 800, quality = 0.78): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Could not read image"));
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
+            else { width = Math.round((width * maxDim) / height); height = maxDim; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { reject(new Error("Canvas not supported")); return; }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const uploadProductImage = async (file: File | Blob) => {
     setProductImgUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `products/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
-    if (error) {
-      alert("Image upload failed: " + error.message + "\n\nIf this keeps happening, check that a 'product-images' storage bucket exists in Supabase and is set to public.");
-      setProductImgUploading(false);
-      return;
+    try {
+      const dataUrl = await compressImageToDataUrl(file);
+      setProductForm(f => ({ ...f, image_url: dataUrl }));
+    } catch (e) {
+      alert("Couldn't process that image. Try a different file or paste an image URL instead.");
     }
-    const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
-    setProductForm(f => ({ ...f, image_url: urlData.publicUrl }));
     setProductImgUploading(false);
   };
 
@@ -1141,7 +1169,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 {/* Image upload */}
                 <div>
                   <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Product Image</label>
-                  <div className="flex items-center gap-3">
+                  <div
+                    onPaste={(e) => {
+                      const item = Array.from(e.clipboardData.items).find((it) => it.type.startsWith("image/"));
+                      const blob = item?.getAsFile();
+                      if (blob) uploadProductImage(blob);
+                    }}
+                    tabIndex={0}
+                    className="flex items-center gap-3 outline-none">
                     {productForm.image_url ? (
                       <div className="relative flex-shrink-0">
                         <img src={productForm.image_url} alt="preview" className="h-16 w-16 rounded-2xl object-cover border border-pink-100" />
@@ -1161,12 +1196,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                         {productImgUploading ? "Uploading…" : "Upload Image"}
                         <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadProductImage(e.target.files[0]); }} />
                       </label>
+                      <p className="text-[10px] text-amber-300">Click the box and press Ctrl+V to paste a copied image, or</p>
                       <input type="text" value={productForm.image_url} onChange={e => setProductForm(f => ({ ...f, image_url: e.target.value }))}
-                        placeholder="or paste image URL"
+                        placeholder="paste image URL"
                         className="w-full text-xs px-3 py-1.5 border border-pink-100 rounded-xl focus:outline-none focus:border-pink-300 text-amber-700 placeholder-amber-200" />
                     </div>
                   </div>
                 </div>
+
 
                 {/* Name */}
                 <div>
