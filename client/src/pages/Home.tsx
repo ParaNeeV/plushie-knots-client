@@ -311,9 +311,22 @@ const CATEGORY_SECTIONS = [
 // falling back to the logo for products that already have a real photo
 // sitting in client/public.
 const LOCAL_IMAGE_BY_NAME: Record<string, string> = {};
+const LOCAL_CATEGORY_BY_NAME: Record<string, string> = {};
+const VALID_CATEGORY_KEYS = CATEGORY_SECTIONS.map((s) => s.key);
 CATEGORY_SECTIONS.forEach((section) => {
-  section.fallback.forEach((f) => { LOCAL_IMAGE_BY_NAME[f.name] = f.img; });
+  section.fallback.forEach((f) => {
+    LOCAL_IMAGE_BY_NAME[f.name] = f.img;
+    LOCAL_CATEGORY_BY_NAME[f.name] = section.key;
+  });
 });
+
+// If a DB row's category isn't one of the four valid keys, or it's a known
+// product name filed under the wrong category (e.g. everything defaulted to
+// "Crochet Bouquets" when added), reroute it to where it actually belongs.
+function effectiveCategory(p: { name: string; category: string }): string {
+  if (VALID_CATEGORY_KEYS.includes(p.category) && !LOCAL_CATEGORY_BY_NAME[p.name]) return p.category;
+  return LOCAL_CATEGORY_BY_NAME[p.name] || p.category;
+}
 
 const reviews = [
   { name: "Param", location: "Pune", avatar: "🌻", review: "The sunflower bouquet is genuinely the prettiest thing on my desk. Everyone who visits asks where I got it. So glad I found Plushie Knots — worth every rupee! 💛", product: "Sunflower Bouquet" },
@@ -491,7 +504,7 @@ export default function Home() {
   // never looks broken or empty due to a network hiccup. A genuinely empty category in
   // Supabase (e.g. staff deleted everything) is respected and renders nothing.
   const getCategoryItems = (catKey: string, fallback: { name: string; img: string; price: string }[]): CatalogItem[] => {
-    const dbItems = dbProducts.filter((p) => p.category === catKey && p.status !== "hidden");
+    const dbItems = dbProducts.filter((p) => effectiveCategory(p) === catKey && p.status !== "hidden");
     if (dbItems.length > 0) {
       return dbItems.map((p) => ({
         key: String(p.id),
