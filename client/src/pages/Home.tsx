@@ -1,5 +1,5 @@
 import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram, User, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "wouter";
 import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence, useInView } from "framer-motion";
@@ -29,6 +29,25 @@ function extractProduct(msg: string): string {
 const makeWhatsappLink = (msg: string) =>
   `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 const generalWhatsapp = makeWhatsappLink("Hi Jiya & Kiyoshi! I'm interested in your crochet products 🌸 Could you tell me more?");
+
+// ── Live catalog types (mirrors the `products` table managed in Staff dashboard) ──
+interface DbProduct {
+  id: number;
+  name: string;
+  price: string;
+  category: string;
+  description: string;
+  image_url: string;
+  status: "active" | "hidden" | "out_of_stock";
+}
+interface CatalogItem {
+  key: string;
+  name: string;
+  price: string;
+  image: string;
+  outOfStock: boolean;
+}
+
 
 
 // ── Sign In Popup ──
@@ -257,6 +276,36 @@ const mirrorFlowers = [
 
 const flowerProducts = bouquets;
 
+// Maps each storefront grid to its category key in the `products` table (must match
+// the CATEGORIES list in the Staff dashboard exactly). `fallback` is only shown while
+// the catalog is loading or if the fetch errors — see getCategoryItems in Home().
+const CATEGORY_SECTIONS = [
+  {
+    key: "Crochet Bouquets", emoji: "💐", title: "Crochet Bouquets",
+    subtitle: "Real handcrafted bouquets — forever fresh 🌸",
+    gridClass: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+    messageSuffix: "", fallback: bouquets,
+  },
+  {
+    key: "Crochet Keychains", emoji: "🔑", title: "Crochet Keychains",
+    subtitle: "Tiny & adorable — perfect for gifts 🌸",
+    gridClass: "grid-cols-2 md:grid-cols-4",
+    messageSuffix: " keychain", fallback: keychains,
+  },
+  {
+    key: "Mirror Flowers", emoji: "🛵", title: "Mirror Flowers",
+    subtitle: "Cute crochet flowers for your scooter mirror 🌸",
+    gridClass: "grid-cols-2 md:grid-cols-2 max-w-sm mx-auto",
+    messageSuffix: "", fallback: mirrorFlowers,
+  },
+  {
+    key: "Crochet Plushies", emoji: "🧸", title: "Crochet Plushies",
+    subtitle: "Squishy, huggable, and made with extra love 🌸",
+    gridClass: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+    messageSuffix: "", fallback: [] as { name: string; img: string; price: string }[],
+  },
+] as const;
+
 const reviews = [
   { name: "Param", location: "Pune", avatar: "🌻", review: "The sunflower bouquet is genuinely the prettiest thing on my desk. Everyone who visits asks where I got it. So glad I found Plushie Knots — worth every rupee! 💛", product: "Sunflower Bouquet" },
   { name: "Fardin", location: "Mumbai", avatar: "🧸", review: "Ordered a custom AirPods cover and it came out exactly how I imagined. Super smooth on WhatsApp, delivery was quick. Absolute quality — 10/10!", product: "AirPods Cover" },
@@ -400,19 +449,52 @@ export default function Home() {
   };
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
   const [popupImg, setPopupImg] = useState<string | undefined>(undefined);
-  const [dbPrices, setDbPrices] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    supabase.from("products").select("name, price").then(({ data }) => {
-      if (data) {
-        const map: Record<string, string> = {};
-        data.forEach((p: { name: string; price: string }) => { map[p.name] = p.price; });
-        setDbPrices(map);
-      }
-    });
+  // ── Live product catalog (synced with Staff dashboard) ──
+  const [dbProducts, setDbProducts] = useState<DbProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState(false);
+
+  const fetchCatalog = useCallback(async () => {
+    setProductsLoading(true);
+    setProductsError(false);
+    const { data, error } = await supabase.from("products").select("*").order("category").order("id");
+    if (error) {
+      setProductsError(true);
+    } else {
+      setDbProducts((data as DbProduct[]) || []);
+    }
+    setProductsLoading(false);
   }, []);
 
-  const getPrice = (name: string, fallback: string) => dbPrices[name] || fallback;
+  useEffect(() => { fetchCatalog(); }, [fetchCatalog]);
+
+  const priceByName = useMemo(() => {
+    const map: Record<string, string> = {};
+    dbProducts.forEach((p) => { map[p.name] = p.price; });
+    return map;
+  }, [dbProducts]);
+
+  const getPrice = (name: string, fallback: string) => priceByName[name] || fallback;
+
+  // Build display items for a category: live DB data wins. Local fallback data is only
+  // used while the catalog is still loading, or if the fetch failed — so the storefront
+  // never looks broken or empty due to a network hiccup. A genuinely empty category in
+  // Supabase (e.g. staff deleted everything) is respected and renders nothing.
+  const getCategoryItems = (catKey: string, fallback: { name: string; img: string; price: string }[]): CatalogItem[] => {
+    const dbItems = dbProducts.filter((p) => p.category === catKey && p.status !== "hidden");
+    if (dbItems.length > 0) {
+      return dbItems.map((p) => ({
+        key: String(p.id),
+        name: p.name,
+        price: p.price,
+        image: p.image_url || "/logo.jpg",
+        outOfStock: p.status === "out_of_stock",
+      }));
+    }
+    if (!productsLoading && !productsError) return [];
+    return fallback.map((f) => ({ key: f.name, name: f.name, price: f.price, image: f.img, outOfStock: false }));
+  };
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
@@ -760,102 +842,55 @@ export default function Home() {
             <p className="text-amber-600 text-sm">All handcrafted, all made with love — pick your favourite!</p>
           </Reveal>
 
-          {/* Helper component for section headers */}
-          {/* Crochet Bouquets Grid */}
-          <div className="mb-14">
-            <Reveal>
-              <div className="flex items-center gap-4 mb-3">
-                <div className="h-px flex-1 bg-pink-100" />
-                <h3 className="text-base font-bold text-amber-900 whitespace-nowrap">💐 Crochet Bouquets</h3>
-                <div className="h-px flex-1 bg-pink-100" />
-              </div>
-              <p className="text-center text-amber-500 text-xs mb-8">Real handcrafted bouquets — forever fresh 🌸</p>
-            </Reveal>
-            <motion.div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-              variants={staggerContainer(0.06)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
-              {bouquets.map((item) => (
-                <motion.div key={item.name} variants={popIn}
-                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`, item.img)}
-                  whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                  className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
-                  <div className="h-48 overflow-hidden">
-                    <motion.img src={item.img} alt={`${item.name} - handmade crochet gift India`}
-                      whileHover={{ scale: 1.12 }} transition={{ duration: 0.35 }}
-                      className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-3 text-center">
-                    <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
-                    <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
-                    <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
+          {productsError && (
+            <div className="mb-8 text-center text-xs text-amber-600 bg-amber-100 border border-amber-200 rounded-2xl py-2.5 px-4 max-w-md mx-auto">
+              ⚠️ Couldn't load the latest catalog — showing recently saved products.
+            </div>
+          )}
 
-          {/* Keychains Grid */}
-          <div className="mb-14">
-            <Reveal>
-              <div className="flex items-center gap-4 mb-3">
-                <div className="h-px flex-1 bg-pink-100" />
-                <h3 className="text-base font-bold text-amber-900 whitespace-nowrap">🔑 Crochet Keychains</h3>
-                <div className="h-px flex-1 bg-pink-100" />
-              </div>
-              <p className="text-center text-amber-500 text-xs mb-8">Tiny & adorable — perfect for gifts 🌸</p>
-            </Reveal>
-            <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-4"
-              variants={staggerContainer(0.08)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
-              {keychains.map((item) => (
-                <motion.div key={item.name} variants={popIn}
-                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} keychain 🌸`, item.img)}
-                  whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                  className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
-                  <div className="h-48 overflow-hidden">
-                    <motion.img src={item.img} alt={`${item.name} - handmade crochet keychain India`}
-                      whileHover={{ scale: 1.12 }} transition={{ duration: 0.35 }}
-                      className="w-full h-full object-cover" />
+          {CATEGORY_SECTIONS.map((section) => {
+            const items = getCategoryItems(section.key, section.fallback as { name: string; img: string; price: string }[]);
+            if (items.length === 0) return null;
+            return (
+              <div key={section.key} className="mb-14">
+                <Reveal>
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="h-px flex-1 bg-pink-100" />
+                    <h3 className="text-base font-bold text-amber-900 whitespace-nowrap">{section.emoji} {section.title}</h3>
+                    <div className="h-px flex-1 bg-pink-100" />
                   </div>
-                  <div className="p-3 text-center">
-                    <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
-                    <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
-                    <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
-                  </div>
+                  <p className="text-center text-amber-500 text-xs mb-8">{section.subtitle}</p>
+                </Reveal>
+                <motion.div className={`grid ${section.gridClass} gap-4`}
+                  variants={staggerContainer(0.06)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
+                  {items.map((item) => (
+                    <motion.div key={item.key} variants={popIn}
+                      onClick={() => !item.outOfStock && handleOrder(`Hi! I'd love to order the ${item.name}${section.messageSuffix} 🌸`, item.image)}
+                      whileHover={item.outOfStock ? undefined : { y: -6, scale: 1.03 }}
+                      whileTap={item.outOfStock ? undefined : { scale: 0.97 }}
+                      className={`group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 ${item.outOfStock ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+                      <div className="h-48 overflow-hidden relative">
+                        <motion.img src={item.image} alt={`${item.name} - handmade crochet gift India`}
+                          onError={(e) => { (e.target as HTMLImageElement).src = "/logo.jpg"; }}
+                          whileHover={item.outOfStock ? undefined : { scale: 1.12 }} transition={{ duration: 0.35 }}
+                          className="w-full h-full object-cover" />
+                        {item.outOfStock && (
+                          <span className="absolute top-2 right-2 text-[10px] font-bold bg-red-500 text-white px-2 py-1 rounded-full shadow-sm">
+                            Out of Stock
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-3 text-center">
+                        <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
+                        <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
+                        <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
+                      </div>
+                    </motion.div>
+                  ))}
                 </motion.div>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* Mirror Flowers Grid */}
-          <div className="mb-14">
-            <Reveal>
-              <div className="flex items-center gap-4 mb-3">
-                <div className="h-px flex-1 bg-pink-100" />
-                <h3 className="text-base font-bold text-amber-900 whitespace-nowrap">🛵 Mirror Flowers</h3>
-                <div className="h-px flex-1 bg-pink-100" />
               </div>
-              <p className="text-center text-amber-500 text-xs mb-8">Cute crochet flowers for your scooter mirror 🌸</p>
-            </Reveal>
-            <motion.div className="grid grid-cols-2 md:grid-cols-2 gap-4 max-w-sm mx-auto"
-              variants={staggerContainer(0.1)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
-              {mirrorFlowers.map((item) => (
-                <motion.div key={item.name} variants={popIn}
-                  onClick={() => handleOrder(`Hi! I'd love to order the ${item.name} 🌸`, item.img)}
-                  whileHover={{ y: -6, scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                  className="group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 cursor-pointer">
-                  <div className="h-48 overflow-hidden">
-                    <motion.img src={item.img} alt={`${item.name} - handmade crochet gift India`}
-                      whileHover={{ scale: 1.12 }} transition={{ duration: 0.35 }}
-                      className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-3 text-center">
-                    <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
-                    <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
-                    <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
+            );
+          })}
 
           {/* Catalog images */}
           {[
