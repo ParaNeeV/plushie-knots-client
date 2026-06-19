@@ -8,6 +8,7 @@ import WaveDivider from "@/components/WaveDivider";
 
 const WHATSAPP_NUMBER = "917387042421";
 const PROFILE_KEY = "pk_customer_profile";
+const CATALOG_CACHE_KEY = "pk_catalog_cache_v1";
 
 function getProfile(): { name: string; phone: string } | null {
   try { const r = localStorage.getItem(PROFILE_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
@@ -17,6 +18,9 @@ function saveProfile(name: string, phone: string) {
 }
 function clearProfile() {
   localStorage.removeItem(PROFILE_KEY);
+}
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
 }
 function extractProduct(msg: string): string {
   return msg
@@ -129,6 +133,7 @@ function OrderPopup({ productMsg, imgUrl, onClose }: { productMsg: string; imgUr
       status: "new",
       notes: "",
       source: "customer",
+      date: todayStr(),
     });
     const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${name.trim()}\n📱 Phone: ${phone.trim()}\n\n${productMsg}${imgUrl ? `\n\n🖼️ Product ref: https://plushie-knots-client.vercel.app${imgUrl}` : ""}`;
     window.open(makeWhatsappLink(fullMsg), "_blank");
@@ -455,6 +460,7 @@ export default function Home() {
         status: "new",
         notes: "",
         source: "customer",
+        date: todayStr(),
       });
       const fullMsg = `Hi Jiya & Kiyoshi! 🌸\n\n👤 Name: ${profile.name}\n📱 Phone: ${profile.phone}\n\n${productMsg}${imgUrl ? `\n\n🖼️ Product ref: https://plushie-knots-client.vercel.app${imgUrl}` : ""}`;
       window.open(makeWhatsappLink(fullMsg), "_blank");
@@ -473,23 +479,34 @@ export default function Home() {
   const [popupImg, setPopupImg] = useState<string | undefined>(undefined);
 
   // ── Live product catalog (synced with Staff dashboard) ──
-  const [dbProducts, setDbProducts] = useState<DbProduct[]>([]);
-  const [productsLoading, setProductsLoading] = useState(true);
+  // Seed from last cached snapshot so the page paints instantly (no blank/empty
+  // flash on load), then refresh from Supabase in the background and re-cache.
+  const [dbProducts, setDbProducts] = useState<DbProduct[]>(() => {
+    try {
+      const cached = localStorage.getItem(CATALOG_CACHE_KEY);
+      return cached ? (JSON.parse(cached) as DbProduct[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [productsLoading, setProductsLoading] = useState(dbProducts.length === 0);
   const [productsError, setProductsError] = useState(false);
 
   const fetchCatalog = useCallback(async () => {
-    setProductsLoading(true);
+    if (dbProducts.length === 0) setProductsLoading(true);
     setProductsError(false);
     const { data, error } = await supabase.from("products").select("*").order("category").order("id");
     if (error) {
       setProductsError(true);
     } else {
-      setDbProducts((data as DbProduct[]) || []);
+      const fresh = (data as DbProduct[]) || [];
+      setDbProducts(fresh);
+      try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(fresh)); } catch { /* ignore quota errors */ }
     }
     setProductsLoading(false);
-  }, []);
+  }, [dbProducts.length]);
 
-  useEffect(() => { fetchCatalog(); }, [fetchCatalog]);
+  useEffect(() => { fetchCatalog(); }, []);
 
   const priceByName = useMemo(() => {
     const map: Record<string, string> = {};
@@ -542,6 +559,8 @@ export default function Home() {
       description: formData.message,
       status: "new",
       notes: "",
+      source: "customer",
+      date: todayStr(),
     });
     setFormSubmitted(true);
     setTimeout(() => {

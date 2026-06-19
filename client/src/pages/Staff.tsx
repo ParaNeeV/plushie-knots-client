@@ -460,10 +460,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     const ext = file.name.split(".").pop();
     const path = `products/${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
-    if (!error) {
-      const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
-      setProductForm(f => ({ ...f, image_url: urlData.publicUrl }));
+    if (error) {
+      alert("Image upload failed: " + error.message + "\n\nIf this keeps happening, check that a 'product-images' storage bucket exists in Supabase and is set to public.");
+      setProductImgUploading(false);
+      return;
     }
+    const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
+    setProductForm(f => ({ ...f, image_url: urlData.publicUrl }));
     setProductImgUploading(false);
   };
 
@@ -976,7 +979,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <tbody>
                   <AnimatePresence>
                     {filtered.length === 0 ? (
-                      <tr><td colSpan={8} className="text-center py-14 text-amber-400 text-sm">No orders yet 🌸</td></tr>
+                      <tr><td colSpan={9} className="text-center py-14 text-amber-400 text-sm">No orders yet 🌸</td></tr>
                     ) : (
                       filtered.map((order) => {
                         const sm = statusMeta[order.status];
