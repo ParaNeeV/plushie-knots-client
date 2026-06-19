@@ -306,6 +306,15 @@ const CATEGORY_SECTIONS = [
   },
 ] as const;
 
+// Looks up a local product photo by name when a DB row has no image_url yet
+// (e.g. products seeded before the Staff image uploader existed). Avoids
+// falling back to the logo for products that already have a real photo
+// sitting in client/public.
+const LOCAL_IMAGE_BY_NAME: Record<string, string> = {};
+CATEGORY_SECTIONS.forEach((section) => {
+  section.fallback.forEach((f) => { LOCAL_IMAGE_BY_NAME[f.name] = f.img; });
+});
+
 const reviews = [
   { name: "Param", location: "Pune", avatar: "🌻", review: "The sunflower bouquet is genuinely the prettiest thing on my desk. Everyone who visits asks where I got it. So glad I found Plushie Knots — worth every rupee! 💛", product: "Sunflower Bouquet" },
   { name: "Fardin", location: "Mumbai", avatar: "🧸", review: "Ordered a custom AirPods cover and it came out exactly how I imagined. Super smooth on WhatsApp, delivery was quick. Absolute quality — 10/10!", product: "AirPods Cover" },
@@ -488,7 +497,7 @@ export default function Home() {
         key: String(p.id),
         name: p.name,
         price: p.price,
-        image: p.image_url || "/logo.jpg",
+        image: p.image_url || LOCAL_IMAGE_BY_NAME[p.name] || "/logo.jpg",
         outOfStock: p.status === "out_of_stock",
       }));
     }
