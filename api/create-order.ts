@@ -58,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         description: description?.trim() || "",
         status: "new",
         payment_status: "pending",
-        price: `₹${rupees}`,
+        price: rupees,
         notes: "",
         source: "customer",
         date: todayStr(),
