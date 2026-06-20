@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getSupabaseAdmin } from "./_supabaseAdmin";
+import { getSupabaseAdmin } from "./_supabaseAdmin.js";
 
 // How long an order can sit unpaid before it's auto-cancelled.
 const TIMEOUT_MINUTES = 20;

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Razorpay from "razorpay";
-import { getSupabaseAdmin } from "./_supabaseAdmin";
+import { getSupabaseAdmin } from "./_supabaseAdmin.js";
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);

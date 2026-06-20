@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import crypto from "crypto";
-import { getSupabaseAdmin } from "./_supabaseAdmin";
+import { getSupabaseAdmin } from "./_supabaseAdmin.js";
 
 // Reads the raw request body as a string. This MUST happen before anything
 // else touches `req` — we need the exact bytes Razorpay sent (not a
