@@ -203,6 +203,153 @@ function OrderPopup({ productMsg, imgUrl, onClose }: { productMsg: string; imgUr
   );
 }
 
+// ── Checkout Popup (online payment, no chat needed) ──
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).Razorpay) { resolve(); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Couldn't load the payment page. Check your connection and try again."));
+    document.body.appendChild(script);
+  });
+}
+
+function CheckoutPopup({ item, onClose, onFallbackWhatsapp }: {
+  item: { name: string; price: string; image?: string; description: string };
+  onClose: () => void;
+  onFallbackWhatsapp: () => void;
+}) {
+  const profile = getProfile();
+  const [name, setName] = useState(profile?.name || "");
+  const [phone, setPhone] = useState(profile?.phone || "");
+  const [address, setAddress] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [step, setStep] = useState<"form" | "loading" | "paid" | "error">("form");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (step !== "paid") return;
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [step]);
+
+  const handlePay = async () => {
+    if (!name.trim()) { setErr("Please enter your name"); return; }
+    if (!phone.trim() || phone.trim().length < 10) { setErr("Please enter a valid phone number"); return; }
+    if (!address.trim()) { setErr("Please enter your delivery address"); return; }
+    if (!pincode.trim() || pincode.trim().length < 5) { setErr("Please enter a valid pincode"); return; }
+    setErr("");
+    setStep("loading");
+    saveProfile(name.trim(), phone.trim());
+
+    try {
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(), phone: phone.trim(), address: address.trim(), pincode: pincode.trim(),
+          product: item.name, description: item.description, price: item.price,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || "Something went wrong. Please try again."); setStep("error"); return; }
+
+      await loadRazorpayScript();
+      const rzp = new (window as any).Razorpay({
+        key: data.razorpayKeyId,
+        amount: data.amount,
+        currency: data.currency,
+        order_id: data.razorpayOrderId,
+        name: "Plushie Knots",
+        description: item.name,
+        prefill: { name: data.name, contact: data.phone },
+        theme: { color: "#f472b6" },
+        handler: () => setStep("paid"),
+        modal: { ondismiss: () => setStep("form") },
+      });
+      rzp.open();
+      setStep("form");
+    } catch (e: any) {
+      setErr(e.message || "Something went wrong. Please try again.");
+      setStep("error");
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
+      onClick={(e) => e.target === e.currentTarget && step !== "loading" && onClose()}>
+      <motion.div initial={{ opacity: 0, scale: 0.93, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-pink-100 overflow-hidden">
+
+        {step === "paid" ? (
+          <div className="p-8 text-center">
+            <div className="text-4xl mb-3">🎉</div>
+            <h2 className="font-bold text-amber-900 text-lg mb-1">Payment received!</h2>
+            <p className="text-sm text-amber-500">We'll start making your {item.name} right away. No need to message us — you're all set 🌸</p>
+          </div>
+        ) : (
+          <>
+            <div className="px-6 pt-6 pb-4 text-center border-b border-pink-50">
+              <div className="text-3xl mb-2">⚡</div>
+              <h2 className="font-bold text-amber-900 text-lg">Pay & Confirm Order</h2>
+              <p className="text-sm text-amber-500 mt-1">{item.name} — {item.price}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Your Name</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Phone Number</label>
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Delivery Address</label>
+                <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="House/flat, street, area, city"
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors resize-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Pincode</label>
+                <input type="text" value={pincode} onChange={(e) => setPincode(e.target.value)} placeholder="e.g. 411001"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+              </div>
+              {err && (
+                <div className="text-xs text-red-500 space-y-2">
+                  <p>{err}</p>
+                  {err.toLowerCase().includes("whatsapp") && (
+                    <button onClick={onFallbackWhatsapp} className="underline font-semibold">Order via WhatsApp instead →</button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col items-center gap-3 px-6 pb-6">
+              <motion.button onClick={handlePay} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} disabled={step === "loading"}
+                className="w-full py-3.5 rounded-2xl bg-pink-400 hover:bg-pink-500 disabled:bg-pink-300 text-white text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+                {step === "loading" ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                ) : (`Pay ${item.price} via UPI/Card`)}
+              </motion.button>
+              <button onClick={onFallbackWhatsapp} className="text-xs text-amber-400 hover:text-amber-600 transition-colors">
+                Prefer to order via WhatsApp instead?
+              </button>
+              <button onClick={onClose} className="text-sm text-amber-500 hover:text-amber-700 transition-colors underline-offset-2 hover:underline">
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Reusable animation variants ──
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
@@ -478,6 +625,11 @@ export default function Home() {
     setCustomerProfile(null);
   };
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
+  const [checkoutItem, setCheckoutItem] = useState<{ name: string; price: string; image?: string; description: string } | null>(null);
+  const openCheckout = (item: { name: string; price: string; image?: string; description: string }) => {
+    if (ordersPaused) return;
+    setCheckoutItem(item);
+  };
   const [popupImg, setPopupImg] = useState<string | undefined>(undefined);
 
   // ── Live product catalog (synced with Staff dashboard) ──
@@ -890,6 +1042,10 @@ export default function Home() {
                     className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
                     <MessageCircle className="h-4 w-4" /> Order on WhatsApp
                   </motion.button>
+                  <button onClick={() => openCheckout({ name: product.name, price: getPrice(product.name, product.price), image: product.img, description: `Order via website: ${product.name}` })}
+                    className="flex items-center justify-center gap-2 w-full bg-pink-50 hover:bg-pink-100 text-pink-500 font-semibold py-3 rounded-2xl text-sm mt-2 transition-colors">
+                    ⚡ Pay Online Instead
+                  </button>
                 </div>
               </motion.div>
             ))}
@@ -956,6 +1112,12 @@ export default function Home() {
                         <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
                         <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
                         <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
+                        {!item.outOfStock && (
+                          <button onClick={(e) => { e.stopPropagation(); openCheckout({ name: item.name, price: getPrice(item.name, item.price), image: item.image, description: `Order via website: ${item.name}${section.messageSuffix}` }); }}
+                            className="mt-2 w-full text-[11px] font-semibold bg-pink-50 hover:bg-pink-100 text-pink-500 py-1.5 rounded-full transition-colors flex items-center justify-center gap-1">
+                            ⚡ Pay Online
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -1312,6 +1474,17 @@ export default function Home() {
       {/* Order Popup */}
       <AnimatePresence>
         {popupMsg && <OrderPopup productMsg={popupMsg} imgUrl={popupImg} onClose={() => { setPopupMsg(null); setPopupImg(undefined); setCustomerProfile(getProfile()); }} />}
+        {checkoutItem && (
+          <CheckoutPopup
+            item={checkoutItem}
+            onClose={() => setCheckoutItem(null)}
+            onFallbackWhatsapp={() => {
+              const item = checkoutItem;
+              setCheckoutItem(null);
+              handleOrder(`Hi! I'd love to order the ${item.name} 🌸`, item.image);
+            }}
+          />
+        )}
       </AnimatePresence>
 
       {/* ── Floating WhatsApp ── */}

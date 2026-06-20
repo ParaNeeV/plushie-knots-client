@@ -23,6 +23,8 @@ interface Order {
   source?: string;
   deadline?: string;
   price?: number;
+  address?: string;
+  payment_status?: "pending" | "paid" | "failed" | "cancelled";
 }
 
 interface Product {
@@ -1023,12 +1025,30 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                           <motion.tr key={order.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}
                             className="border-b border-pink-50 last:border-0 hover:bg-amber-50/40 transition-colors">
-                            <td className="px-4 py-3 font-medium text-amber-900 whitespace-nowrap">{order.name}</td>
+                            <td className="px-4 py-3 font-medium text-amber-900 whitespace-nowrap">
+                              {order.name}
+                              {order.payment_status && (
+                                <div className="mt-1">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    order.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" :
+                                    order.payment_status === "failed" ? "bg-red-100 text-red-600" :
+                                    order.payment_status === "cancelled" ? "bg-amber-100 text-amber-600" :
+                                    "bg-pink-100 text-pink-600"}`}>
+                                    {order.payment_status === "paid" ? "✓ Paid online" :
+                                     order.payment_status === "failed" ? "✕ Payment failed" :
+                                     order.payment_status === "cancelled" ? "Auto-cancelled" : "Awaiting payment"}
+                                  </span>
+                                </div>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-amber-500 text-xs whitespace-nowrap">{order.phone || "—"}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className="inline-block text-xs bg-pink-50 text-pink-600 border border-pink-200 font-medium px-2.5 py-1 rounded-full">{order.product}</span>
                             </td>
-                            <td className="px-4 py-3 text-amber-600 text-xs max-w-xs"><span className="line-clamp-2">{order.description}</span></td>
+                            <td className="px-4 py-3 text-amber-600 text-xs max-w-xs">
+                              <span className="line-clamp-2">{order.description}</span>
+                              {order.address && <p className="text-amber-400 mt-1 line-clamp-1">📍 {order.address}</p>}
+                            </td>
                             <td className="px-4 py-3 text-xs whitespace-nowrap">
                               <p className="text-amber-400">{order.date}</p>
                               {editingDeadlineId === order.id ? (

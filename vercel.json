@@ -10,6 +10,9 @@
     }
   ],
   "rewrites": [
-    { "source": "/((?!sitemap.xml).*)", "destination": "/index.html" }
+    { "source": "/((?!sitemap.xml|api/).*)", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cancel-stale-orders", "schedule": "*/10 * * * *" }
   ]
 }
