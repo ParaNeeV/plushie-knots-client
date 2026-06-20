@@ -518,6 +518,27 @@ export default function Home() {
 
   const getPrice = (name: string, fallback: string) => priceByName[name] || fallback;
 
+  // Bestsellers showcase: pulls any product Staff has marked with the "Bestseller"
+  // badge. Falls back to the original curated pair while the catalog is loading,
+  // erroring, or before anything has been tagged yet — so this section never
+  // looks empty right after shipping this feature.
+  const bestsellerItems = useMemo(() => {
+    const tagged = dbProducts.filter((p) => p.status !== "hidden" && (p.tag || "").trim().toLowerCase() === "bestseller");
+    if (tagged.length > 0) {
+      return tagged.map((p, i) => ({
+        id: p.id,
+        name: p.name,
+        desc: p.description || "A customer favourite, made with extra love 🌸",
+        img: p.image_url || LOCAL_IMAGE_BY_NAME[p.name] || "/logo.jpg",
+        tag: p.tag || "Bestseller",
+        tagColor: i % 2 === 0 ? "bg-amber-100 text-amber-800" : "bg-pink-100 text-pink-700",
+        price: p.price,
+      }));
+    }
+    if (!productsLoading && !productsError) return [];
+    return bestsellers;
+  }, [dbProducts, productsLoading, productsError]);
+
   // Build display items for a category: live DB data wins. Local fallback data is only
   // used while the catalog is still loading, or if the fetch failed — so the storefront
   // never looks broken or empty due to a network hiccup. A genuinely empty category in
@@ -821,6 +842,7 @@ export default function Home() {
       <WaveDivider fromColor="#fdf6ee" toColor="#fff7ed" />
 
       {/* ── Bestsellers ── */}
+      {bestsellerItems.length > 0 && (
       <section id="bestsellers" className="py-20 md:py-28 bg-gradient-to-b from-orange-50 to-rose-50">
         <div className="container max-w-5xl mx-auto">
           <Reveal className="text-center mb-14">
@@ -834,7 +856,7 @@ export default function Home() {
           <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-8"
             variants={staggerContainer(0.15)} initial="hidden"
             whileInView="show" viewport={{ once: true, margin: "-60px" }}>
-            {bestsellers.map((product) => (
+            {bestsellerItems.map((product) => (
               <motion.div key={product.id} variants={fadeUp}
                 whileHover={{ y: -8, boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -874,6 +896,7 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+      )}
 
       <WaveDivider fromColor="#fff1f2" toColor="#fffbeb" flip />
 
