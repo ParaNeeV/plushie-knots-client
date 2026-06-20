@@ -329,7 +329,7 @@ CATEGORY_SECTIONS.forEach((section) => {
 // product name filed under the wrong category (e.g. everything defaulted to
 // "Crochet Bouquets" when added), reroute it to where it actually belongs.
 function effectiveCategory(p: { name: string; category: string }): string {
-  if (VALID_CATEGORY_KEYS.includes(p.category) && !LOCAL_CATEGORY_BY_NAME[p.name]) return p.category;
+  if (VALID_CATEGORY_KEYS.includes(p.category)) return p.category;
   return LOCAL_CATEGORY_BY_NAME[p.name] || p.category;
 }
 
