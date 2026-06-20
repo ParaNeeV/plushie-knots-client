@@ -33,6 +33,7 @@ interface Product {
   description: string;
   image_url: string;
   status: "active" | "hidden" | "out_of_stock";
+  tag?: string;
 }
 
 const CATEGORIES = ["Crochet Bouquets", "Crochet Keychains", "Mirror Flowers", "Crochet Plushies"];
@@ -43,7 +44,8 @@ const STATUS_CONFIG = {
   out_of_stock: { label: "Out of Stock", color: "bg-red-100 text-red-600",         dot: "bg-red-400"    },
 } as const;
 
-const emptyProductForm = { name: "", price: "", category: CATEGORIES[0], description: "", image_url: "", status: "active" as Product["status"] };
+const emptyProductForm = { name: "", price: "", category: CATEGORIES[0], description: "", image_url: "", status: "active" as Product["status"], tag: "" };
+const QUICK_TAGS = ["NEW", "Limited Offer", "Bestseller", "10% OFF", "20% OFF", "50% OFF", "Only 2 left", "Only 3 left"];
 
 // ── Auth constants ─────────────────────────────────────────────────────
 const SESSION_KEY = "pk_staff_session";
@@ -425,7 +427,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   const openEditProduct = (p: Product) => {
-    setProductForm({ name: p.name, price: p.price, category: p.category, description: p.description, image_url: p.image_url, status: p.status });
+    setProductForm({ name: p.name, price: p.price, category: p.category, description: p.description, image_url: p.image_url, status: p.status, tag: p.tag || "" });
     setProductModal({ open: true, editing: p });
   };
 
@@ -789,7 +791,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                                <p className="text-sm font-semibold text-amber-900 truncate">
+                                  {p.name}
+                                  {p.tag && <span className="ml-2 text-[10px] font-bold bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full whitespace-nowrap">{p.tag}</span>}
+                                </p>
                                 {p.description && <p className="text-xs text-amber-400 truncate mt-0.5">{p.description}</p>}
                               </div>
                               <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
@@ -832,7 +837,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-amber-900 truncate">{p.name}</p>
+                                <p className="text-sm font-semibold text-amber-900 truncate">
+                                  {p.name}
+                                  {p.tag && <span className="ml-2 text-[10px] font-bold bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full whitespace-nowrap">{p.tag}</span>}
+                                </p>
                                 <p className="text-xs text-amber-400 truncate">{p.category}</p>
                               </div>
                               <span className="text-sm font-bold text-pink-500 whitespace-nowrap">{p.price}</span>
@@ -1237,6 +1245,23 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     placeholder="Short description shown to customers…"
                     rows={3}
                     className="w-full text-sm px-4 py-2.5 border-2 border-pink-100 rounded-2xl focus:outline-none focus:border-pink-300 text-amber-900 placeholder-amber-200 resize-none" />
+                </div>
+
+                {/* Tag / Badge */}
+                <div>
+                  <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Badge (optional)</label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {QUICK_TAGS.map(t => (
+                      <button key={t} onClick={() => setProductForm(f => ({ ...f, tag: f.tag === t ? "" : t }))}
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${productForm.tag === t ? "bg-pink-400 text-white border-transparent" : "border-pink-100 text-amber-500 bg-white hover:bg-pink-50"}`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <input type="text" value={productForm.tag} onChange={e => setProductForm(f => ({ ...f, tag: e.target.value }))}
+                    placeholder="or type a custom badge, e.g. 'Only 1 left!'"
+                    className="w-full text-xs px-3 py-2 border border-pink-100 rounded-xl focus:outline-none focus:border-pink-300 text-amber-700 placeholder-amber-200" />
+                  <p className="text-[10px] text-amber-300 mt-1">Leave blank to show no badge on this product.</p>
                 </div>
 
                 {/* Status */}

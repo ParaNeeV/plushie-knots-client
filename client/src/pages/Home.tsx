@@ -43,6 +43,7 @@ interface DbProduct {
   description: string;
   image_url: string;
   status: "active" | "hidden" | "out_of_stock";
+  tag?: string;
 }
 interface CatalogItem {
   key: string;
@@ -50,6 +51,7 @@ interface CatalogItem {
   price: string;
   image: string;
   outOfStock: boolean;
+  tag?: string;
 }
 
 
@@ -529,6 +531,7 @@ export default function Home() {
         price: p.price,
         image: p.image_url || LOCAL_IMAGE_BY_NAME[p.name] || "/logo.jpg",
         outOfStock: p.status === "out_of_stock",
+        tag: p.tag,
       }));
     }
     if (!productsLoading && !productsError) return [];
@@ -915,6 +918,11 @@ export default function Home() {
                           onError={(e) => { (e.target as HTMLImageElement).src = "/logo.jpg"; }}
                           whileHover={item.outOfStock ? undefined : { scale: 1.12 }} transition={{ duration: 0.35 }}
                           className="w-full h-full object-cover" />
+                        {item.tag && (
+                          <span className="absolute top-2 left-2 text-[10px] font-bold bg-pink-500 text-white px-2 py-1 rounded-full shadow-sm">
+                            {item.tag}
+                          </span>
+                        )}
                         {item.outOfStock && (
                           <span className="absolute top-2 right-2 text-[10px] font-bold bg-red-500 text-white px-2 py-1 rounded-full shadow-sm">
                             Out of Stock
