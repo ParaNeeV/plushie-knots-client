@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram, User, LogOut } from "lucide-react";
+import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram, User, LogOut, ShoppingBag, Plus, Minus, Trash2 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "wouter";
 import { supabase } from "../lib/supabase";
@@ -9,6 +9,9 @@ import WaveDivider from "@/components/WaveDivider";
 const WHATSAPP_NUMBER = "917387042421";
 const PROFILE_KEY = "pk_customer_profile";
 const CATALOG_CACHE_KEY = "pk_catalog_cache_v1";
+const CART_KEY = "pk_cart_v1";
+
+interface CartItem { key: string; name: string; price: string; image?: string; qty: number; }
 
 function getProfile(): { name: string; phone: string } | null {
   try { const r = localStorage.getItem(PROFILE_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
@@ -22,6 +25,20 @@ function clearProfile() {
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
+// Mirrors the backend's strict check in api/create-order.ts — only a clean
+// amount like "₹349" is eligible for instant online payment. Anything with
+// extra words/conditions ("Starting ₹59", "₹150 if bought in pair") isn't,
+// since auto-charging an ambiguous price is a real money-mistake risk.
+function isCleanPrice(price: string): boolean {
+  return /^₹?\s?(\d{1,3}(,\d{3})*|\d+)(\.\d+)?$/.test(price.trim());
+}
+function parseCleanRupees(price: string): number | null {
+  const match = price.trim().match(/^₹?\s?(\d{1,3}(,\d{3})*|\d+)(\.\d+)?$/);
+  if (!match) return null;
+  const n = parseFloat(match[1].replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
 function extractProduct(msg: string): string {
   return msg
     .replace("Hi! I'd love to order the ", "")
@@ -113,14 +130,14 @@ function SignInPopup({ onClose }: { onClose: () => void }) {
 }
 
 // ── Order Popup ──
-function OrderPopup({ productMsg, imgUrl, onClose }: { productMsg: string; imgUrl?: string; onClose: () => void }) {
+function OrderPopup({ productMsg, imgUrl, productNameOverride, onClose }: { productMsg: string; imgUrl?: string; productNameOverride?: string; onClose: () => void }) {
   const profile = getProfile();
   const [name, setName] = useState(profile?.name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const isReturning = !!profile;
-  const productName = extractProduct(productMsg);
+  const productName = productNameOverride || extractProduct(productMsg);
 
   const handleOrder = async () => {
     if (!name.trim()) { setErr("Please enter your name"); return; }
@@ -278,11 +295,11 @@ function CheckoutPopup({ item, onClose, onFallbackWhatsapp }: {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4 py-6"
       onClick={(e) => e.target === e.currentTarget && step !== "loading" && onClose()}>
       <motion.div initial={{ opacity: 0, scale: 0.93, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.93, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}
-        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-pink-100 overflow-hidden">
+        className="w-full max-w-sm max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-pink-100">
 
         {step === "paid" ? (
           <div className="p-8 text-center">
@@ -342,6 +359,80 @@ function CheckoutPopup({ item, onClose, onFallbackWhatsapp }: {
               <button onClick={onClose} className="text-sm text-amber-500 hover:text-amber-700 transition-colors underline-offset-2 hover:underline">
                 Cancel
               </button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Cart Drawer ──
+function CartDrawer({
+  cart, onClose, onUpdateQty, onRemove, total, hasAmbiguousPrice, onCheckoutWhatsapp, onCheckoutPayOnline,
+}: {
+  cart: CartItem[];
+  onClose: () => void;
+  onUpdateQty: (key: string, delta: number) => void;
+  onRemove: (key: string) => void;
+  total: number;
+  hasAmbiguousPrice: boolean;
+  onCheckoutWhatsapp: () => void;
+  onCheckoutPayOnline: () => void;
+}) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        className="w-full max-w-sm h-full bg-white shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-pink-50">
+          <h2 className="font-bold text-amber-900 text-lg flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-pink-400" /> Your Cart</h2>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-pink-50 text-amber-500"><X className="h-5 w-5" /></button>
+        </div>
+
+        {cart.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+            <div className="text-4xl mb-3">🛒</div>
+            <p className="text-amber-500 text-sm">Your cart is empty — go add some cuteness 🌸</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {cart.map((item) => (
+                <div key={item.key} className="flex gap-3 items-center">
+                  <img src={item.image || "/logo.jpg"} alt={item.name} className="w-16 h-16 rounded-2xl object-cover border border-pink-100 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-900 truncate">{item.name}</p>
+                    <p className="text-xs text-pink-500 font-bold mt-0.5">{item.price}{!isCleanPrice(item.price) && <span className="text-amber-400 font-normal"> · custom pricing</span>}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <button onClick={() => onUpdateQty(item.key, -1)} className="w-6 h-6 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-500 flex items-center justify-center"><Minus className="h-3 w-3" /></button>
+                      <span className="text-xs font-semibold text-amber-800 w-5 text-center">{item.qty}</span>
+                      <button onClick={() => onUpdateQty(item.key, 1)} className="w-6 h-6 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-500 flex items-center justify-center"><Plus className="h-3 w-3" /></button>
+                    </div>
+                  </div>
+                  <button onClick={() => onRemove(item.key)} className="p-1.5 text-amber-300 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-pink-50 px-5 py-4 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-amber-600 font-medium">Total</span>
+                <span className="text-amber-900 font-bold text-lg">₹{total}{hasAmbiguousPrice && <span className="text-xs text-amber-400 font-normal">+</span>}</span>
+              </div>
+              {hasAmbiguousPrice && (
+                <p className="text-[11px] text-amber-400">Some items have custom pricing — order via WhatsApp so we can confirm the exact total with you.</p>
+              )}
+              <motion.button onClick={onCheckoutWhatsapp} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
+                <MessageCircle className="h-4 w-4" /> Checkout via WhatsApp
+              </motion.button>
+              {!hasAmbiguousPrice && (
+                <button onClick={onCheckoutPayOnline}
+                  className="flex items-center justify-center gap-2 w-full bg-pink-50 hover:bg-pink-100 text-pink-500 font-semibold py-3 rounded-2xl text-sm transition-colors">
+                  ⚡ Pay Online Instead
+                </button>
+              )}
             </div>
           </>
         )}
@@ -596,15 +687,21 @@ export default function Home() {
     });
   }, []);
 
-  const handleOrder = async (productMsg: string, imgUrl?: string) => {
-    if (ordersPaused) return;
+  const [pausedToast, setPausedToast] = useState(false);
+  const showPausedToast = () => {
+    setPausedToast(true);
+    setTimeout(() => setPausedToast(false), 2800);
+  };
+
+  const handleOrder = async (productMsg: string, imgUrl?: string, productNameOverride?: string) => {
+    if (ordersPaused) { showPausedToast(); return; }
     const profile = getProfile();
     if (profile) {
       // Already signed in — go straight to WhatsApp
       supabase.from("orders").insert({
         name: profile.name,
         phone: profile.phone,
-        product: extractProduct(productMsg),
+        product: productNameOverride || extractProduct(productMsg),
         description: productMsg,
         status: "new",
         notes: "",
@@ -617,6 +714,7 @@ export default function Home() {
       // Not signed in — show popup
       setPopupImg(imgUrl);
       setPopupMsg(productMsg);
+      setPopupProductName(productNameOverride);
     }
   };
 
@@ -625,12 +723,58 @@ export default function Home() {
     setCustomerProfile(null);
   };
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
+  const [popupProductName, setPopupProductName] = useState<string | undefined>(undefined);
   const [checkoutItem, setCheckoutItem] = useState<{ name: string; price: string; image?: string; description: string } | null>(null);
   const openCheckout = (item: { name: string; price: string; image?: string; description: string }) => {
-    if (ordersPaused) return;
+    if (ordersPaused) { showPausedToast(); return; }
     setCheckoutItem(item);
   };
   const [popupImg, setPopupImg] = useState<string | undefined>(undefined);
+
+  // ── Cart (replaces the old single-item instant order buttons) ──
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try { const r = localStorage.getItem(CART_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartToast, setCartToastMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch { /* ignore quota errors */ }
+  }, [cart]);
+
+  const addToCart = (item: { key: string; name: string; price: string; image?: string }) => {
+    if (ordersPaused) { showPausedToast(); return; }
+    setCart((prev) => {
+      const existing = prev.find((c) => c.key === item.key);
+      if (existing) return prev.map((c) => (c.key === item.key ? { ...c, qty: c.qty + 1 } : c));
+      return [...prev, { ...item, qty: 1 }];
+    });
+    setCartToastMsg(`Added ${item.name} to cart 🛒`);
+    setTimeout(() => setCartToastMsg(null), 1800);
+  };
+  const updateCartQty = (key: string, delta: number) => {
+    setCart((prev) => prev.map((c) => (c.key === key ? { ...c, qty: Math.max(1, c.qty + delta) } : c)));
+  };
+  const removeFromCart = (key: string) => setCart((prev) => prev.filter((c) => c.key !== key));
+  const cartCount = cart.reduce((sum, c) => sum + c.qty, 0);
+  const cartTotal = cart.reduce((sum, c) => sum + (parseCleanRupees(c.price) || 0) * c.qty, 0);
+  const cartHasAmbiguousPrice = cart.some((c) => !isCleanPrice(c.price));
+
+  const checkoutCartViaWhatsapp = () => {
+    if (cart.length === 0) return;
+    const itemized = cart.map((c) => `• ${c.name} x${c.qty} (${c.price} each)`).join("\n");
+    const productName = cart.length === 1 ? `${cart[0].name} x${cart[0].qty}` : `${cartCount} items`;
+    const msg = `Hi Jiya & Kiyoshi! I'd love to order:\n${itemized}\n\nTotal: ₹${cartTotal} 🌸`;
+    setCartOpen(false);
+    handleOrder(msg, cart[0]?.image, productName);
+  };
+  const checkoutCartViaPayOnline = () => {
+    if (cart.length === 0 || cartHasAmbiguousPrice) return;
+    const itemized = cart.map((c) => `${c.name} x${c.qty} (${c.price} each)`).join(", ");
+    const productName = cart.length === 1 ? `${cart[0].name} x${cart[0].qty}` : `${cartCount} items`;
+    setCartOpen(false);
+    openCheckout({ name: productName, price: `₹${cartTotal}`, image: cart[0]?.image, description: `Cart order: ${itemized}` });
+  };
 
   // ── Live product catalog (synced with Staff dashboard) ──
   // Seed from last cached snapshot so the page paints instantly (no blank/empty
@@ -828,6 +972,12 @@ export default function Home() {
             )}
 
           </div>
+          <button onClick={() => setCartOpen(true)} className="relative p-2.5 rounded-full hover:bg-pink-50 transition-colors" title="View cart">
+            <ShoppingBag className="h-5 w-5 text-amber-800" />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">{cartCount}</span>
+            )}
+          </button>
           <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
             whileHover={{ scale: ordersPaused ? 1 : 1.06 }} whileTap={{ scale: ordersPaused ? 1 : 0.95 }}
             disabled={ordersPaused}
@@ -1037,15 +1187,11 @@ export default function Home() {
                     <Palette className="h-3.5 w-3.5 flex-shrink-0" />
                     Available in custom colours — just ask!
                   </div>
-                  <motion.button onClick={() => handleOrder(`Hi! I'd love to order the ${product.name} 🌸`, product.img)}
+                  <motion.button onClick={() => addToCart({ key: `bestseller-${product.id}`, name: product.name, price: getPrice(product.name, product.price), image: product.img })}
                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                    className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
-                    <MessageCircle className="h-4 w-4" /> Order on WhatsApp
+                    className="flex items-center justify-center gap-2 w-full bg-pink-400 hover:bg-pink-500 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
+                    <ShoppingBag className="h-4 w-4" /> Add to Cart
                   </motion.button>
-                  <button onClick={() => openCheckout({ name: product.name, price: getPrice(product.name, product.price), image: product.img, description: `Order via website: ${product.name}` })}
-                    className="flex items-center justify-center gap-2 w-full bg-pink-50 hover:bg-pink-100 text-pink-500 font-semibold py-3 rounded-2xl text-sm mt-2 transition-colors">
-                    ⚡ Pay Online Instead
-                  </button>
                 </div>
               </motion.div>
             ))}
@@ -1088,7 +1234,7 @@ export default function Home() {
                   variants={staggerContainer(0.06)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
                   {items.map((item) => (
                     <motion.div key={item.key} variants={popIn}
-                      onClick={() => !item.outOfStock && handleOrder(`Hi! I'd love to order the ${item.name}${section.messageSuffix} 🌸`, item.image)}
+                      onClick={() => !item.outOfStock && addToCart({ key: item.key, name: item.name, price: getPrice(item.name, item.price), image: item.image })}
                       whileHover={item.outOfStock ? undefined : { y: -6, scale: 1.03 }}
                       whileTap={item.outOfStock ? undefined : { scale: 0.97 }}
                       className={`group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 ${item.outOfStock ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
@@ -1113,9 +1259,9 @@ export default function Home() {
                         <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
                         <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
                         {!item.outOfStock && (
-                          <button onClick={(e) => { e.stopPropagation(); openCheckout({ name: item.name, price: getPrice(item.name, item.price), image: item.image, description: `Order via website: ${item.name}${section.messageSuffix}` }); }}
+                          <button onClick={(e) => { e.stopPropagation(); addToCart({ key: item.key, name: item.name, price: getPrice(item.name, item.price), image: item.image }); }}
                             className="mt-2 w-full text-[11px] font-semibold bg-pink-50 hover:bg-pink-100 text-pink-500 py-1.5 rounded-full transition-colors flex items-center justify-center gap-1">
-                            ⚡ Pay Online
+                            <ShoppingBag className="h-3 w-3" /> Add to Cart
                           </button>
                         )}
                       </div>
@@ -1473,7 +1619,31 @@ export default function Home() {
 
       {/* Order Popup */}
       <AnimatePresence>
-        {popupMsg && <OrderPopup productMsg={popupMsg} imgUrl={popupImg} onClose={() => { setPopupMsg(null); setPopupImg(undefined); setCustomerProfile(getProfile()); }} />}
+        {popupMsg && <OrderPopup productMsg={popupMsg} imgUrl={popupImg} productNameOverride={popupProductName} onClose={() => { setPopupMsg(null); setPopupImg(undefined); setPopupProductName(undefined); setCustomerProfile(getProfile()); }} />}
+        {cartOpen && (
+          <CartDrawer
+            cart={cart}
+            onClose={() => setCartOpen(false)}
+            onUpdateQty={updateCartQty}
+            onRemove={removeFromCart}
+            total={cartTotal}
+            hasAmbiguousPrice={cartHasAmbiguousPrice}
+            onCheckoutWhatsapp={checkoutCartViaWhatsapp}
+            onCheckoutPayOnline={checkoutCartViaPayOnline}
+          />
+        )}
+        {cartToast && (
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-pink-500 text-white text-sm font-medium px-5 py-3 rounded-full shadow-xl">
+            {cartToast}
+          </motion.div>
+        )}
+        {pausedToast && (
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-amber-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-xl">
+            We're fully booked right now — check back soon! 🎀
+          </motion.div>
+        )}
         {checkoutItem && (
           <CheckoutPopup
             item={checkoutItem}
