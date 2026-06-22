@@ -982,7 +982,7 @@ export default function Home() {
             whileHover={{ scale: ordersPaused ? 1 : 1.06 }} whileTap={{ scale: ordersPaused ? 1 : 0.95 }}
             disabled={ordersPaused}
             className={`hidden md:flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full shadow-sm ${ordersPaused ? "bg-amber-300 text-white cursor-not-allowed" : "bg-green-500 hover:bg-green-600 text-white"}`}>
-            <MessageCircle className="h-4 w-4" /> {ordersPaused ? "Fully Booked 🎀" : "Order Now"}
+            <MessageCircle className="h-4 w-4" /> {ordersPaused ? "Fully Booked 🎀" : "Chat with us"}
           </motion.button>
           <motion.button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             whileTap={{ scale: 0.9 }}
@@ -1017,7 +1017,7 @@ export default function Home() {
               <motion.button onClick={() => { setMobileMenuOpen(false); handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸"); }}
                 initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.28 }}
                 className="flex items-center justify-center gap-2 bg-green-500 text-white text-sm font-semibold px-4 py-3 rounded-2xl">
-                <MessageCircle className="h-4 w-4" /> Order on WhatsApp
+                <MessageCircle className="h-4 w-4" /> Chat with us
               </motion.button>
             </motion.div>
           )}
@@ -1106,7 +1106,7 @@ export default function Home() {
             <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
               whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
               className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
-              <MessageCircle className="h-4 w-4" /> Order on WhatsApp
+              <MessageCircle className="h-4 w-4" /> Chat with us
             </motion.button>
           </motion.div>
 
@@ -1306,7 +1306,7 @@ export default function Home() {
               <motion.button onClick={() => handleOrder("Hi! I'd like to place a custom order 🌸 Can you help?")}
                 whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
                 className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
-                <MessageCircle className="h-4 w-4" /> Chat & Order on WhatsApp
+                <MessageCircle className="h-4 w-4" /> Chat with us
               </motion.button>
             </div>
           </Reveal>
@@ -1327,7 +1327,7 @@ export default function Home() {
             variants={staggerContainer(0.15)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-60px" }}>
             {[
               { step: "01", Icon: Brush, title: "Browse & Pick", desc: "Explore our flowers, keychains, AirPods covers and more. Find what makes your heart go warm.", color: "bg-pink-50 border-pink-100" },
-              { step: "02", Icon: MessageCircle, title: "Order on WhatsApp", desc: "Tap any Order button and chat with Jiya & Kiyoshi. Tell them your colours, size, or any custom touches.", color: "bg-amber-50 border-amber-100" },
+              { step: "02", Icon: ShoppingBag, title: "Add to Cart & Checkout", desc: "Add your favourites to the cart, then checkout via WhatsApp or pay online instantly — whichever you prefer.", color: "bg-amber-50 border-amber-100" },
               { step: "03", Icon: Package, title: "Receive with Love", desc: "Your handmade piece gets crafted fresh and delivered to you — wrapped with care, made with heart.", color: "bg-rose-50 border-rose-100" },
             ].map(({ step, Icon, title, desc, color }) => (
               <motion.div key={step} variants={fadeUp}
@@ -1668,7 +1668,7 @@ export default function Home() {
         <motion.div animate={ordersPaused ? {} : { rotate: [0, -15, 15, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}>
           <MessageCircle className="h-5 w-5" />
         </motion.div>
-        <span className="text-sm hidden sm:inline">{ordersPaused ? "Fully Booked 🎀" : "Order Now"}</span>
+        <span className="text-sm hidden sm:inline">{ordersPaused ? "Fully Booked 🎀" : "Chat with us"}</span>
       </motion.button>
 
       {/* ── Back to Top ── */}
