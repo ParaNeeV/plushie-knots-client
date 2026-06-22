@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram, User, LogOut } from "lucide-react";
+import { Heart, MessageCircle, Menu, X, Sparkles, Star, ChevronUp, ChevronDown, Palette, Package, Clock, Brush, Instagram, User, LogOut, ShoppingBag, Plus, Minus, Trash2 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "wouter";
 import { supabase } from "../lib/supabase";
@@ -9,6 +9,9 @@ import WaveDivider from "@/components/WaveDivider";
 const WHATSAPP_NUMBER = "917387042421";
 const PROFILE_KEY = "pk_customer_profile";
 const CATALOG_CACHE_KEY = "pk_catalog_cache_v1";
+const CART_KEY = "pk_cart_v1";
+
+interface CartItem { key: string; name: string; price: string; image?: string; qty: number; }
 
 function getProfile(): { name: string; phone: string } | null {
   try { const r = localStorage.getItem(PROFILE_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
@@ -22,6 +25,20 @@ function clearProfile() {
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
+// Mirrors the backend's strict check in api/create-order.ts — only a clean
+// amount like "₹349" is eligible for instant online payment. Anything with
+// extra words/conditions ("Starting ₹59", "₹150 if bought in pair") isn't,
+// since auto-charging an ambiguous price is a real money-mistake risk.
+function isCleanPrice(price: string): boolean {
+  return /^₹?\s?(\d{1,3}(,\d{3})*|\d+)(\.\d+)?$/.test(price.trim());
+}
+function parseCleanRupees(price: string): number | null {
+  const match = price.trim().match(/^₹?\s?(\d{1,3}(,\d{3})*|\d+)(\.\d+)?$/);
+  if (!match) return null;
+  const n = parseFloat(match[1].replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
 function extractProduct(msg: string): string {
   return msg
     .replace("Hi! I'd love to order the ", "")
@@ -113,14 +130,14 @@ function SignInPopup({ onClose }: { onClose: () => void }) {
 }
 
 // ── Order Popup ──
-function OrderPopup({ productMsg, imgUrl, onClose }: { productMsg: string; imgUrl?: string; onClose: () => void }) {
+function OrderPopup({ productMsg, imgUrl, productNameOverride, onClose }: { productMsg: string; imgUrl?: string; productNameOverride?: string; onClose: () => void }) {
   const profile = getProfile();
   const [name, setName] = useState(profile?.name || "");
   const [phone, setPhone] = useState(profile?.phone || "");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const isReturning = !!profile;
-  const productName = extractProduct(productMsg);
+  const productName = productNameOverride || extractProduct(productMsg);
 
   const handleOrder = async () => {
     if (!name.trim()) { setErr("Please enter your name"); return; }
@@ -198,6 +215,227 @@ function OrderPopup({ productMsg, imgUrl, onClose }: { productMsg: string; imgUr
             Cancel
           </button>
         </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Checkout Popup (online payment, no chat needed) ──
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).Razorpay) { resolve(); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Couldn't load the payment page. Check your connection and try again."));
+    document.body.appendChild(script);
+  });
+}
+
+function CheckoutPopup({ item, onClose, onFallbackWhatsapp }: {
+  item: { name: string; price: string; image?: string; description: string };
+  onClose: () => void;
+  onFallbackWhatsapp: () => void;
+}) {
+  const profile = getProfile();
+  const [name, setName] = useState(profile?.name || "");
+  const [phone, setPhone] = useState(profile?.phone || "");
+  const [address, setAddress] = useState("");
+  const [pincode, setPincode] = useState("");
+  const [step, setStep] = useState<"form" | "loading" | "paid" | "error">("form");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (step !== "paid") return;
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [step]);
+
+  const handlePay = async () => {
+    if (!name.trim()) { setErr("Please enter your name"); return; }
+    if (!phone.trim() || phone.trim().length < 10) { setErr("Please enter a valid phone number"); return; }
+    if (!address.trim()) { setErr("Please enter your delivery address"); return; }
+    if (!pincode.trim() || pincode.trim().length < 5) { setErr("Please enter a valid pincode"); return; }
+    setErr("");
+    setStep("loading");
+    saveProfile(name.trim(), phone.trim());
+
+    try {
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(), phone: phone.trim(), address: address.trim(), pincode: pincode.trim(),
+          product: item.name, description: item.description, price: item.price,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || "Something went wrong. Please try again."); setStep("error"); return; }
+
+      await loadRazorpayScript();
+      const rzp = new (window as any).Razorpay({
+        key: data.razorpayKeyId,
+        amount: data.amount,
+        currency: data.currency,
+        order_id: data.razorpayOrderId,
+        name: "Plushie Knots",
+        description: item.name,
+        prefill: { name: data.name, contact: data.phone },
+        theme: { color: "#f472b6" },
+        handler: () => setStep("paid"),
+        modal: { ondismiss: () => setStep("form") },
+      });
+      rzp.open();
+      setStep("form");
+    } catch (e: any) {
+      setErr(e.message || "Something went wrong. Please try again.");
+      setStep("error");
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4 py-6"
+      onClick={(e) => e.target === e.currentTarget && step !== "loading" && onClose()}>
+      <motion.div initial={{ opacity: 0, scale: 0.93, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.93, y: 20 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        className="w-full max-w-sm max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-pink-100">
+
+        {step === "paid" ? (
+          <div className="p-8 text-center">
+            <div className="text-4xl mb-3">🎉</div>
+            <h2 className="font-bold text-amber-900 text-lg mb-1">Payment received!</h2>
+            <p className="text-sm text-amber-500">We'll start making your {item.name} right away. No need to message us — you're all set 🌸</p>
+          </div>
+        ) : (
+          <>
+            <div className="px-6 pt-6 pb-4 text-center border-b border-pink-50">
+              <div className="text-3xl mb-2">⚡</div>
+              <h2 className="font-bold text-amber-900 text-lg">Pay & Confirm Order</h2>
+              <p className="text-sm text-amber-500 mt-1">{item.name} — {item.price}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Your Name</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Phone Number</label>
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Delivery Address</label>
+                <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="House/flat, street, area, city"
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors resize-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-800 uppercase tracking-wider mb-1.5">Pincode</label>
+                <input type="text" value={pincode} onChange={(e) => setPincode(e.target.value)} placeholder="e.g. 411001"
+                  className="w-full px-4 py-3 rounded-2xl border-2 border-pink-100 focus:border-pink-300 focus:outline-none text-sm text-amber-900 placeholder:text-amber-300 transition-colors" />
+              </div>
+              {err && (
+                <div className="text-xs text-red-500 space-y-2">
+                  <p>{err}</p>
+                  {err.toLowerCase().includes("whatsapp") && (
+                    <button onClick={onFallbackWhatsapp} className="underline font-semibold">Order via WhatsApp instead →</button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col items-center gap-3 px-6 pb-6">
+              <motion.button onClick={handlePay} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} disabled={step === "loading"}
+                className="w-full py-3.5 rounded-2xl bg-pink-400 hover:bg-pink-500 disabled:bg-pink-300 text-white text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2">
+                {step === "loading" ? (
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                    className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                ) : (`Pay ${item.price} via UPI/Card`)}
+              </motion.button>
+              <button onClick={onFallbackWhatsapp} className="text-xs text-amber-400 hover:text-amber-600 transition-colors">
+                Prefer to order via WhatsApp instead?
+              </button>
+              <button onClick={onClose} className="text-sm text-amber-500 hover:text-amber-700 transition-colors underline-offset-2 hover:underline">
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Cart Drawer ──
+function CartDrawer({
+  cart, onClose, onUpdateQty, onRemove, total, hasAmbiguousPrice, onCheckoutWhatsapp, onCheckoutPayOnline,
+}: {
+  cart: CartItem[];
+  onClose: () => void;
+  onUpdateQty: (key: string, delta: number) => void;
+  onRemove: (key: string) => void;
+  total: number;
+  hasAmbiguousPrice: boolean;
+  onCheckoutWhatsapp: () => void;
+  onCheckoutPayOnline: () => void;
+}) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        className="w-full max-w-sm h-full bg-white shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-pink-50">
+          <h2 className="font-bold text-amber-900 text-lg flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-pink-400" /> Your Cart</h2>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-pink-50 text-amber-500"><X className="h-5 w-5" /></button>
+        </div>
+
+        {cart.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+            <div className="text-4xl mb-3">🛒</div>
+            <p className="text-amber-500 text-sm">Your cart is empty — go add some cuteness 🌸</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {cart.map((item) => (
+                <div key={item.key} className="flex gap-3 items-center">
+                  <img src={item.image || "/logo.jpg"} alt={item.name} className="w-16 h-16 rounded-2xl object-cover border border-pink-100 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-900 truncate">{item.name}</p>
+                    <p className="text-xs text-pink-500 font-bold mt-0.5">{item.price}{!isCleanPrice(item.price) && <span className="text-amber-400 font-normal"> · custom pricing</span>}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <button onClick={() => onUpdateQty(item.key, -1)} className="w-6 h-6 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-500 flex items-center justify-center"><Minus className="h-3 w-3" /></button>
+                      <span className="text-xs font-semibold text-amber-800 w-5 text-center">{item.qty}</span>
+                      <button onClick={() => onUpdateQty(item.key, 1)} className="w-6 h-6 rounded-full bg-pink-50 hover:bg-pink-100 text-pink-500 flex items-center justify-center"><Plus className="h-3 w-3" /></button>
+                    </div>
+                  </div>
+                  <button onClick={() => onRemove(item.key)} className="p-1.5 text-amber-300 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-pink-50 px-5 py-4 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-amber-600 font-medium">Total</span>
+                <span className="text-amber-900 font-bold text-lg">₹{total}{hasAmbiguousPrice && <span className="text-xs text-amber-400 font-normal">+</span>}</span>
+              </div>
+              {hasAmbiguousPrice && (
+                <p className="text-[11px] text-amber-400">Some items have custom pricing — order via WhatsApp so we can confirm the exact total with you.</p>
+              )}
+              <motion.button onClick={onCheckoutWhatsapp} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
+                <MessageCircle className="h-4 w-4" /> Checkout via WhatsApp
+              </motion.button>
+              {!hasAmbiguousPrice && (
+                <button onClick={onCheckoutPayOnline}
+                  className="flex items-center justify-center gap-2 w-full bg-pink-50 hover:bg-pink-100 text-pink-500 font-semibold py-3 rounded-2xl text-sm transition-colors">
+                  ⚡ Pay Online Instead
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -449,15 +687,21 @@ export default function Home() {
     });
   }, []);
 
-  const handleOrder = async (productMsg: string, imgUrl?: string) => {
-    if (ordersPaused) return;
+  const [pausedToast, setPausedToast] = useState(false);
+  const showPausedToast = () => {
+    setPausedToast(true);
+    setTimeout(() => setPausedToast(false), 2800);
+  };
+
+  const handleOrder = async (productMsg: string, imgUrl?: string, productNameOverride?: string) => {
+    if (ordersPaused) { showPausedToast(); return; }
     const profile = getProfile();
     if (profile) {
       // Already signed in — go straight to WhatsApp
       supabase.from("orders").insert({
         name: profile.name,
         phone: profile.phone,
-        product: extractProduct(productMsg),
+        product: productNameOverride || extractProduct(productMsg),
         description: productMsg,
         status: "new",
         notes: "",
@@ -470,6 +714,7 @@ export default function Home() {
       // Not signed in — show popup
       setPopupImg(imgUrl);
       setPopupMsg(productMsg);
+      setPopupProductName(productNameOverride);
     }
   };
 
@@ -478,7 +723,58 @@ export default function Home() {
     setCustomerProfile(null);
   };
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
+  const [popupProductName, setPopupProductName] = useState<string | undefined>(undefined);
+  const [checkoutItem, setCheckoutItem] = useState<{ name: string; price: string; image?: string; description: string } | null>(null);
+  const openCheckout = (item: { name: string; price: string; image?: string; description: string }) => {
+    if (ordersPaused) { showPausedToast(); return; }
+    setCheckoutItem(item);
+  };
   const [popupImg, setPopupImg] = useState<string | undefined>(undefined);
+
+  // ── Cart (replaces the old single-item instant order buttons) ──
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try { const r = localStorage.getItem(CART_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+  });
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartToast, setCartToastMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch { /* ignore quota errors */ }
+  }, [cart]);
+
+  const addToCart = (item: { key: string; name: string; price: string; image?: string }) => {
+    if (ordersPaused) { showPausedToast(); return; }
+    setCart((prev) => {
+      const existing = prev.find((c) => c.key === item.key);
+      if (existing) return prev.map((c) => (c.key === item.key ? { ...c, qty: c.qty + 1 } : c));
+      return [...prev, { ...item, qty: 1 }];
+    });
+    setCartToastMsg(`Added ${item.name} to cart 🛒`);
+    setTimeout(() => setCartToastMsg(null), 1800);
+  };
+  const updateCartQty = (key: string, delta: number) => {
+    setCart((prev) => prev.map((c) => (c.key === key ? { ...c, qty: Math.max(1, c.qty + delta) } : c)));
+  };
+  const removeFromCart = (key: string) => setCart((prev) => prev.filter((c) => c.key !== key));
+  const cartCount = cart.reduce((sum, c) => sum + c.qty, 0);
+  const cartTotal = cart.reduce((sum, c) => sum + (parseCleanRupees(c.price) || 0) * c.qty, 0);
+  const cartHasAmbiguousPrice = cart.some((c) => !isCleanPrice(c.price));
+
+  const checkoutCartViaWhatsapp = () => {
+    if (cart.length === 0) return;
+    const itemized = cart.map((c) => `• ${c.name} x${c.qty} (${c.price} each)`).join("\n");
+    const productName = cart.length === 1 ? `${cart[0].name} x${cart[0].qty}` : `${cartCount} items`;
+    const msg = `Hi Jiya & Kiyoshi! I'd love to order:\n${itemized}\n\nTotal: ₹${cartTotal} 🌸`;
+    setCartOpen(false);
+    handleOrder(msg, cart[0]?.image, productName);
+  };
+  const checkoutCartViaPayOnline = () => {
+    if (cart.length === 0 || cartHasAmbiguousPrice) return;
+    const itemized = cart.map((c) => `${c.name} x${c.qty} (${c.price} each)`).join(", ");
+    const productName = cart.length === 1 ? `${cart[0].name} x${cart[0].qty}` : `${cartCount} items`;
+    setCartOpen(false);
+    openCheckout({ name: productName, price: `₹${cartTotal}`, image: cart[0]?.image, description: `Cart order: ${itemized}` });
+  };
 
   // ── Live product catalog (synced with Staff dashboard) ──
   // Seed from last cached snapshot so the page paints instantly (no blank/empty
@@ -676,11 +972,17 @@ export default function Home() {
             )}
 
           </div>
+          <button onClick={() => setCartOpen(true)} className="relative p-2.5 rounded-full hover:bg-pink-50 transition-colors" title="View cart">
+            <ShoppingBag className="h-5 w-5 text-amber-800" />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">{cartCount}</span>
+            )}
+          </button>
           <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
             whileHover={{ scale: ordersPaused ? 1 : 1.06 }} whileTap={{ scale: ordersPaused ? 1 : 0.95 }}
             disabled={ordersPaused}
             className={`hidden md:flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full shadow-sm ${ordersPaused ? "bg-amber-300 text-white cursor-not-allowed" : "bg-green-500 hover:bg-green-600 text-white"}`}>
-            <MessageCircle className="h-4 w-4" /> {ordersPaused ? "Fully Booked 🎀" : "Order Now"}
+            <MessageCircle className="h-4 w-4" /> {ordersPaused ? "Fully Booked 🎀" : "Chat with us"}
           </motion.button>
           <motion.button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             whileTap={{ scale: 0.9 }}
@@ -715,7 +1017,7 @@ export default function Home() {
               <motion.button onClick={() => { setMobileMenuOpen(false); handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸"); }}
                 initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.28 }}
                 className="flex items-center justify-center gap-2 bg-green-500 text-white text-sm font-semibold px-4 py-3 rounded-2xl">
-                <MessageCircle className="h-4 w-4" /> Order on WhatsApp
+                <MessageCircle className="h-4 w-4" /> Chat with us
               </motion.button>
             </motion.div>
           )}
@@ -804,7 +1106,7 @@ export default function Home() {
             <motion.button onClick={() => handleOrder("Hi Jiya & Kiyoshi! I'm interested in placing an order 🌸")}
               whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
               className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
-              <MessageCircle className="h-4 w-4" /> Order on WhatsApp
+              <MessageCircle className="h-4 w-4" /> Chat with us
             </motion.button>
           </motion.div>
 
@@ -885,10 +1187,10 @@ export default function Home() {
                     <Palette className="h-3.5 w-3.5 flex-shrink-0" />
                     Available in custom colours — just ask!
                   </div>
-                  <motion.button onClick={() => handleOrder(`Hi! I'd love to order the ${product.name} 🌸`, product.img)}
+                  <motion.button onClick={() => addToCart({ key: `bestseller-${product.id}`, name: product.name, price: getPrice(product.name, product.price), image: product.img })}
                     whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                    className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
-                    <MessageCircle className="h-4 w-4" /> Order on WhatsApp
+                    className="flex items-center justify-center gap-2 w-full bg-pink-400 hover:bg-pink-500 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-sm">
+                    <ShoppingBag className="h-4 w-4" /> Add to Cart
                   </motion.button>
                 </div>
               </motion.div>
@@ -932,7 +1234,7 @@ export default function Home() {
                   variants={staggerContainer(0.06)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
                   {items.map((item) => (
                     <motion.div key={item.key} variants={popIn}
-                      onClick={() => !item.outOfStock && handleOrder(`Hi! I'd love to order the ${item.name}${section.messageSuffix} 🌸`, item.image)}
+                      onClick={() => !item.outOfStock && addToCart({ key: item.key, name: item.name, price: getPrice(item.name, item.price), image: item.image })}
                       whileHover={item.outOfStock ? undefined : { y: -6, scale: 1.03 }}
                       whileTap={item.outOfStock ? undefined : { scale: 0.97 }}
                       className={`group bg-white rounded-2xl overflow-hidden shadow-sm border border-pink-100 ${item.outOfStock ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
@@ -956,6 +1258,12 @@ export default function Home() {
                         <p className="text-xs font-semibold text-amber-900 leading-snug">{item.name}</p>
                         <p className="text-pink-500 text-xs font-bold mt-1">{getPrice(item.name, item.price)}</p>
                         <p className="text-amber-400 text-xs mt-0.5">🎨 custom colours</p>
+                        {!item.outOfStock && (
+                          <button onClick={(e) => { e.stopPropagation(); addToCart({ key: item.key, name: item.name, price: getPrice(item.name, item.price), image: item.image }); }}
+                            className="mt-2 w-full text-[11px] font-semibold bg-pink-50 hover:bg-pink-100 text-pink-500 py-1.5 rounded-full transition-colors flex items-center justify-center gap-1">
+                            <ShoppingBag className="h-3 w-3" /> Add to Cart
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -998,7 +1306,7 @@ export default function Home() {
               <motion.button onClick={() => handleOrder("Hi! I'd like to place a custom order 🌸 Can you help?")}
                 whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }}
                 className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full px-8 py-4 text-sm shadow-md">
-                <MessageCircle className="h-4 w-4" /> Chat & Order on WhatsApp
+                <MessageCircle className="h-4 w-4" /> Chat with us
               </motion.button>
             </div>
           </Reveal>
@@ -1019,7 +1327,7 @@ export default function Home() {
             variants={staggerContainer(0.15)} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-60px" }}>
             {[
               { step: "01", Icon: Brush, title: "Browse & Pick", desc: "Explore our flowers, keychains, AirPods covers and more. Find what makes your heart go warm.", color: "bg-pink-50 border-pink-100" },
-              { step: "02", Icon: MessageCircle, title: "Order on WhatsApp", desc: "Tap any Order button and chat with Jiya & Kiyoshi. Tell them your colours, size, or any custom touches.", color: "bg-amber-50 border-amber-100" },
+              { step: "02", Icon: ShoppingBag, title: "Add to Cart & Checkout", desc: "Add your favourites to the cart, then checkout via WhatsApp or pay online instantly — whichever you prefer.", color: "bg-amber-50 border-amber-100" },
               { step: "03", Icon: Package, title: "Receive with Love", desc: "Your handmade piece gets crafted fresh and delivered to you — wrapped with care, made with heart.", color: "bg-rose-50 border-rose-100" },
             ].map(({ step, Icon, title, desc, color }) => (
               <motion.div key={step} variants={fadeUp}
@@ -1311,7 +1619,42 @@ export default function Home() {
 
       {/* Order Popup */}
       <AnimatePresence>
-        {popupMsg && <OrderPopup productMsg={popupMsg} imgUrl={popupImg} onClose={() => { setPopupMsg(null); setPopupImg(undefined); setCustomerProfile(getProfile()); }} />}
+        {popupMsg && <OrderPopup productMsg={popupMsg} imgUrl={popupImg} productNameOverride={popupProductName} onClose={() => { setPopupMsg(null); setPopupImg(undefined); setPopupProductName(undefined); setCustomerProfile(getProfile()); }} />}
+        {cartOpen && (
+          <CartDrawer
+            cart={cart}
+            onClose={() => setCartOpen(false)}
+            onUpdateQty={updateCartQty}
+            onRemove={removeFromCart}
+            total={cartTotal}
+            hasAmbiguousPrice={cartHasAmbiguousPrice}
+            onCheckoutWhatsapp={checkoutCartViaWhatsapp}
+            onCheckoutPayOnline={checkoutCartViaPayOnline}
+          />
+        )}
+        {cartToast && (
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-pink-500 text-white text-sm font-medium px-5 py-3 rounded-full shadow-xl">
+            {cartToast}
+          </motion.div>
+        )}
+        {pausedToast && (
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-amber-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-xl">
+            We're fully booked right now — check back soon! 🎀
+          </motion.div>
+        )}
+        {checkoutItem && (
+          <CheckoutPopup
+            item={checkoutItem}
+            onClose={() => setCheckoutItem(null)}
+            onFallbackWhatsapp={() => {
+              const item = checkoutItem;
+              setCheckoutItem(null);
+              handleOrder(`Hi! I'd love to order the ${item.name} 🌸`, item.image);
+            }}
+          />
+        )}
       </AnimatePresence>
 
       {/* ── Floating WhatsApp ── */}
@@ -1325,7 +1668,7 @@ export default function Home() {
         <motion.div animate={ordersPaused ? {} : { rotate: [0, -15, 15, -10, 0] }} transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}>
           <MessageCircle className="h-5 w-5" />
         </motion.div>
-        <span className="text-sm hidden sm:inline">{ordersPaused ? "Fully Booked 🎀" : "Order Now"}</span>
+        <span className="text-sm hidden sm:inline">{ordersPaused ? "Fully Booked 🎀" : "Chat with us"}</span>
       </motion.button>
 
       {/* ── Back to Top ── */}
